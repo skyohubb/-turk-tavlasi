@@ -1,0 +1,17 @@
+node_modules/
+.next/
+out/
+coverage/
+.DS_Store
+*.log
+.env*
+!.env.example
+# İmza anahtarları ve AAB asla repoya girmez (yerel yedek!)
+*.keystore
+*.jks
+playstore/keys/
+*.aab
+*.apks
+playstore/twa/app/
+playstore/twa/*.checksum.txt
+twa-manifest-checksum.txt

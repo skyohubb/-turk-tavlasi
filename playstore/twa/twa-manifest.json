@@ -1,0 +1,39 @@
+{
+  "packageId": "com.duses.tavla",
+  "host": "inquisitive-dieffenbachia-91c987.netlify.app",
+  "name": "Düşeş: Efsanevi Türk Tavlası",
+  "launcherName": "Düşeş Tavla",
+  "display": "standalone",
+  "orientation": "any",
+  "themeColor": "#1c120c",
+  "navigationColor": "#1c120c",
+  "backgroundColor": "#120b07",
+  "enableNotifications": false,
+  "startUrl": "/",
+  "iconUrl": "https://inquisitive-dieffenbachia-91c987.netlify.app/icons/icon-512.png",
+  "maskableIconUrl": "https://inquisitive-dieffenbachia-91c987.netlify.app/icons/icon-512.png",
+  "splashScreenFadeOutDuration": 300,
+  "signingKey": {
+    "path": "../keys/duses-release.keystore",
+    "alias": "duses"
+  },
+  "appVersion": "1.0.0",
+  "appVersionCode": 2,
+  "shortcuts": [],
+  "generatorApp": "bubblewrap-cli",
+  "webManifestUrl": "https://inquisitive-dieffenbachia-91c987.netlify.app/manifest.json",
+  "fallbackType": "customtabs",
+  "displayOverride": [],
+  "features": {},
+  "alphaDependencies": {
+    "enabled": false
+  },
+  "enableSiteSettingsShortcut": true,
+  "isChromeOSOnly": false,
+  "isMetaQuest": false,
+  "fullScopeUrl": "https://inquisitive-dieffenbachia-91c987.netlify.app/",
+  "minSdkVersion": 24,
+  "additionalTrustedOrigins": [],
+  "retainedBundles": [],
+  "fingerprints": []
+}

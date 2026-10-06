@@ -1,0 +1,46 @@
+Reklam birimi başarıyla oluşturuldu
+Yeni reklam birimlerinin reklam göstermeye başlaması bir saat kadar sürebilir. Beklerken örnek reklam birimlerini denemek ister misiniz?
+Ardından, reklam birimini uygulamanıza yerleştirin
+Şu talimatları uygulayın:
+Şu uygulama kimliğini kullanarak Google Mobil Reklamlar SDK'sı kılavuzundaki talimatları uygulayın:
+Türk-tavlasıca-app-pub-6440512201259891~6791782749
+SDK'yı entegre etmek için banner uygulama kılavuzuna başvurun. Şu reklam birimi kimliğini kullanarak kodu entegre ettiğinizde reklam türü, boyutu ve yerleşim belirtirsiniz:
+sabitca-app-pub-6440512201259891/3475354268
+Gerçekleştirdiğiniz uygulamanın politikalara uygunluğunu denetlemek için AdMob politikalarını inceleyin.
+
+Reklam birimi başarıyla oluşturuldu
+Yeni reklam birimlerinin reklam göstermeye başlaması bir saat kadar sürebilir. Beklerken örnek reklam birimlerini denemek ister misiniz?
+Ardından, reklam birimini uygulamanıza yerleştirin
+Şu talimatları uygulayın:
+Şu uygulama kimliğini kullanarak Google Mobil Reklamlar SDK'sı kılavuzundaki talimatları uygulayın:
+Türk-tavlasıca-app-pub-6440512201259891~6791782749
+SDK'yı entegre etmek için geçiş reklamı uygulama kılavuzuna başvurun. Şu reklam birimi kimliğini kullanarak kodu entegre ettiğinizde reklam türü, boyutu ve yerleşim belirtirsiniz:
+ödül1ca-app-pub-6440512201259891/4812486667
+Gerçekleştirdiğiniz uygulamanın politikalara uygunluğunu denetlemek için AdMob politikalarını inceleyin.
+
+
+Reklam birimi başarıyla oluşturuldu
+Yeni reklam birimlerinin reklam göstermeye başlaması bir saat kadar sürebilir. Beklerken örnek reklam birimlerini denemek ister misiniz?
+Ardından, reklam birimini uygulamanıza yerleştirin
+Şu talimatları uygulayın:
+Şu uygulama kimliğini kullanarak Google Mobil Reklamlar SDK'sı kılavuzundaki talimatları uygulayın:
+Türk-tavlasıca-app-pub-6440512201259891~6791782749
+SDK'yı entegre etmek için ödüllü geçiş reklamı uygulama kılavuzuna başvurun. Şu reklam birimi kimliğini kullanarak kodu entegre ettiğinizde reklam türü, boyutu ve yerleşim belirtirsiniz:
+geçiş ödülüca-app-pub-6440512201259891/5893459039
+Gerçekleştirdiğiniz uygulamanın politikalara uygunluğunu denetlemek için AdMob politikalarını inceleyin.
+
+
+
+Reklam birimi başarıyla oluşturuldu
+Yeni reklam birimlerinin reklam göstermeye başlaması bir saat kadar sürebilir. Beklerken örnek reklam birimlerini denemek ister misiniz?
+Ardından, reklam birimini uygulamanıza yerleştirin
+Şu talimatları uygulayın:
+Şu uygulama kimliğini kullanarak Google Mobil Reklamlar SDK'sı kılavuzundaki talimatları uygulayın:
+Türk-tavlasıca-app-pub-6440512201259891~6791782749
+SDK'yı entegre etmek için ödüllü reklam uygulama kılavuzuna başvurun. Şu reklam birimi kimliğini kullanarak kodu entegre ettiğinizde reklam türü, boyutu ve yerleşim belirtirsiniz:
+ödül2ca-app-pub-6440512201259891/2186323326
+Gerçekleştirdiğiniz uygulamanın politikalara uygunluğunu denetlemek için AdMob politikalarını inceleyin.
+
+
+inquisitive-dieffenbachia-91c987.netlify.app
+
