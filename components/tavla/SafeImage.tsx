@@ -15,6 +15,8 @@ export const SafeImage: React.FC<SafeImageProps> = ({
   fallbackSrc = '/images/avatar_genc_cirak.jpg',
   fallbackIcon = '🎲',
   fallbackText,
+  loading = 'lazy',
+  decoding = 'async',
   ...props
 }) => {
   const [hasError, setHasError] = useState<boolean>(false);
@@ -42,6 +44,8 @@ export const SafeImage: React.FC<SafeImageProps> = ({
       alt={alt}
       className={className}
       referrerPolicy="no-referrer"
+      loading={loading}
+      decoding={decoding}
       onError={() => {
         if (!hasError) {
           setHasError(true);

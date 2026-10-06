@@ -2,11 +2,15 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { BOARD_SKINS, BoardSkin } from '@/lib/tavla/customizationData';
+import { BOARD_SKINS, BoardSkin, boardDiscountPrice } from '@/lib/tavla/customizationData';
 import { cloudflareStorage, UserProfile } from '@/lib/cloudflare/storage';
 import { soundEffects } from '@/lib/audio/soundEffects';
+import { formatCoins } from '@/lib/format';
+import { useToast } from '@/hooks/useToast';
 import { SafeImage } from './SafeImage';
 import { AdMobBanner } from './AdMobBanner';
+import { RewardedAdModal } from './RewardedAdModal';
+import { BOARD_DISCOUNT_TTL_MS } from '@/lib/tavla/customizationData';
 
 interface BoardStoreModalProps {
   isOpen: boolean;
@@ -25,7 +29,11 @@ export const BoardStoreModal: React.FC<BoardStoreModalProps> = ({
   const unlockedSkins = userProfile.unlockedBoardSkins || ['board_ceviz_klasik'];
 
   const [selectedSkinId, setSelectedSkinId] = useState<string>(activeSkinId);
-  const [toastMsg, setToastMsg] = useState<string>('');
+  const { msg: toastMsg, show: triggerToast } = useToast(2800);
+  // İndirim videosu akışı: hangi tahta için çek kazanılacak + modal açık mı
+  const [discountSkinId, setDiscountSkinId] = useState<string | null>(null);
+  const [isDiscountAdOpen, setIsDiscountAdOpen] = useState<boolean>(false);
+  const [discountCooldown, setDiscountCooldown] = useState(() => cloudflareStorage.canWatchRewardedAd());
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -41,13 +49,6 @@ export const BoardStoreModal: React.FC<BoardStoreModalProps> = ({
   const isUnlocked = unlockedSkins.includes(selectedSkin.id) || selectedSkin.requiredCoins === 0;
   const isEquipped = activeSkinId === selectedSkin.id;
 
-  const triggerToast = (msg: string) => {
-    setToastMsg(msg);
-    setTimeout(() => {
-      setToastMsg(prev => (prev === msg ? '' : prev));
-    }, 2800);
-  };
-
   const handleEquip = (skin: BoardSkin) => {
     const updatedProfile: UserProfile = {
       ...userProfile,
@@ -59,16 +60,17 @@ export const BoardStoreModal: React.FC<BoardStoreModalProps> = ({
     triggerToast(`✨ "${skin.name}" tahtası kuşandı ve masanıza yerleştirildi!`);
   };
 
-  const handlePurchase = (skin: BoardSkin) => {
-    if (userProfile.coins < skin.requiredCoins) {
+  const handlePurchase = (skin: BoardSkin, priceOverride?: number) => {
+    const price = priceOverride ?? skin.requiredCoins;
+    if (userProfile.coins < price) {
       soundEffects.playCheckerHit();
       triggerToast(
-        `Yetersiz Akçe! ${skin.requiredCoins} Akçe gereklidir. (Mevcut: ${userProfile.coins} Akçe)`
+        `Yetersiz Akçe! ${price} Akçe gereklidir. (Mevcut: ${userProfile.coins} Akçe)`
       );
       return;
     }
 
-    const updatedCoins = userProfile.coins - skin.requiredCoins;
+    const updatedCoins = userProfile.coins - price;
     const nextUnlocked = Array.from(new Set([...unlockedSkins, skin.id]));
 
     const updatedProfile: UserProfile = {
@@ -82,6 +84,28 @@ export const BoardStoreModal: React.FC<BoardStoreModalProps> = ({
     soundEffects.playCoinReward();
     triggerToast(`🎉 Tebrikler! "${skin.name}" el işçiliği tahtanız satın alındı ve kuşandı!`);
   };
+
+  // Reklamlı indirim: videoyu izle → 10dk geçerli %50 çek kazan
+  const handleOpenDiscountAd = (skin: BoardSkin) => {
+    setDiscountSkinId(skin.id);
+    setDiscountCooldown(cloudflareStorage.canWatchRewardedAd());
+    setIsDiscountAdOpen(true);
+  };
+
+  const handleDiscountClaimed = (skinId: string) => {
+    cloudflareStorage.stampAdWatched();
+    cloudflareStorage.grantBoardDiscount(skinId, BOARD_DISCOUNT_TTL_MS);
+    setDiscountCooldown(cloudflareStorage.canWatchRewardedAd());
+    setIsDiscountAdOpen(false);
+    const skin = BOARD_SKINS.find(b => b.id === skinId);
+    triggerToast(
+      `🎉 %50 indirim çeki kapıldı! "${skin?.name || 'Tahta'}" ${boardDiscountPrice(skin?.requiredCoins || 0)} akçeye düştü (10 dk).`
+    );
+  };
+
+  const discountSkin = discountSkinId
+    ? BOARD_SKINS.find(b => b.id === discountSkinId) || null
+    : null;
 
   if (!isOpen) return null;
 
@@ -114,27 +138,27 @@ export const BoardStoreModal: React.FC<BoardStoreModalProps> = ({
           <div className="absolute bottom-2 right-2 w-3.5 h-3.5 border-b-2 border-r-2 border-amber-400/70 pointer-events-none" />
 
           {/* Header */}
-          <div className="relative z-10 p-4 sm:p-6 border-b border-white/[0.08] flex items-center justify-between shrink-0 bg-white/[0.02]">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-amber-400 to-amber-700 p-0.5 shadow-[0_0_15px_rgba(245,158,11,0.4)] flex items-center justify-center text-xl">
+          <div className="relative z-10 p-3 sm:p-6 border-b border-white/[0.08] flex items-center justify-between gap-2 shrink-0 bg-white/[0.02]">
+            <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+              <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-gradient-to-br from-amber-400 to-amber-700 p-0.5 shadow-[0_0_15px_rgba(245,158,11,0.4)] flex items-center justify-center text-lg sm:text-xl shrink-0">
                 🪵
               </div>
-              <div>
+              <div className="min-w-0">
                 <div className="flex items-center gap-2">
-                  <h2 className="font-serif-tavla text-lg sm:text-xl font-black text-[#fef3c7] tracking-tight">
-                    Tavla Tahtası Atölyesi &amp; Mağazası
+                  <h2 className="font-serif-tavla text-base sm:text-xl font-black text-[#fef3c7] tracking-tight truncate">
+                    Tahta Atölyesi
                   </h2>
-                  <span className="text-[10px] bg-amber-500/20 text-amber-300 font-bold px-2 py-0.5 rounded-full border border-amber-400/30">
-                    Özel Tasarımlar
+                  <span className="hidden xs:inline text-[10px] bg-amber-500/20 text-amber-300 font-bold px-2 py-0.5 rounded-full border border-amber-400/30 shrink-0">
+                    Özel Tasarım
                   </span>
                 </div>
-                <p className="text-xs text-amber-200/70">
+                <p className="hidden sm:block text-xs text-amber-200/70 truncate">
                   Osmanlı motifli, ceviz ve gül ağacı el işçiliği tahtalarla oyun zevkinizi taçlandırın
                 </p>
               </div>
             </div>
 
-            <div className="flex items-center gap-2 sm:gap-3">
+            <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
               {/* AdMob Rewarded Video Akçe Button */}
               {onOpenRewardedAd && (
                 <button
@@ -148,23 +172,23 @@ export const BoardStoreModal: React.FC<BoardStoreModalProps> = ({
                 </button>
               )}
 
-              {/* Coin Counter Pill */}
-              <div className="px-3.5 py-1.5 rounded-full bg-amber-500/20 border border-amber-400/40 text-xs font-bold text-amber-200 flex items-center gap-1.5 shadow hidden sm:flex">
+              {/* Coin Counter Pill (mobilde de görünür — kasanı bilerek al) */}
+              <div className="px-2.5 sm:px-3.5 py-1.5 rounded-full bg-amber-500/20 border border-amber-400/40 text-xs font-bold text-amber-200 flex items-center gap-1.5 shadow shrink-0">
                 <span>🪙</span>
                 <span suppressHydrationWarning className="tabular-nums font-black text-amber-100">
-                  {userProfile.coins}
+                  {formatCoins(userProfile.coins)}
                 </span>
-                <span className="text-[10px] uppercase text-amber-300/80">Akçe</span>
+                <span className="text-[10px] uppercase text-amber-300/80 hidden xs:inline">Akçe</span>
               </div>
 
               {/* Prominent Header Close Button */}
               <button
                 onClick={onClose}
-                className="px-3.5 py-1.5 rounded-full bg-rose-500/25 hover:bg-rose-500/40 text-rose-200 hover:text-white border border-rose-400/50 text-xs font-serif-tavla font-bold flex items-center gap-1.5 transition-all shadow-md active:scale-95"
+                className="px-3 sm:px-3.5 py-1.5 rounded-full bg-rose-500/25 hover:bg-rose-500/40 text-rose-200 hover:text-white border border-rose-400/50 text-xs font-serif-tavla font-bold flex items-center gap-1.5 transition-all shadow-md active:scale-95"
                 title="Mağazayı Kapat"
               >
                 <span className="text-sm">✕</span>
-                <span>Kapat</span>
+                <span className="hidden xs:inline">Kapat</span>
               </button>
             </div>
           </div>
@@ -216,11 +240,16 @@ export const BoardStoreModal: React.FC<BoardStoreModalProps> = ({
                       Mülkiyetinizde
                     </span>
                   ) : (
-                    <span className="px-2.5 py-1 rounded-full bg-amber-500 text-stone-950 text-xs font-black shadow-md">
-                      🪙 {selectedSkin.requiredCoins} Akçe
+                    <span className="px-2.5 py-1 rounded-full bg-amber-500 text-stone-950 text-xs font-black shadow-md tabular-nums">
+                      🪙 {formatCoins(selectedSkin.requiredCoins)}
                     </span>
                   )}
                 </div>
+                {cloudflareStorage.hasBoardDiscount(selectedSkin.id) && !isUnlocked && (
+                  <div className="relative z-10 mt-1.5 px-2.5 py-1 rounded-full bg-rose-500/25 text-rose-200 border border-rose-400/50 text-[11px] font-black tabular-nums animate-pulse w-fit">
+                    📺 İndirimli: 🪙 {formatCoins(boardDiscountPrice(selectedSkin.requiredCoins))} (çek aktif!)
+                  </div>
+                )}
 
                 {/* Center Motif Preview */}
                 <div className="relative z-10 flex flex-col items-center justify-center text-center my-auto">
@@ -365,16 +394,63 @@ export const BoardStoreModal: React.FC<BoardStoreModalProps> = ({
                         </div>
                       </div>
 
-                      <div className="shrink-0 text-right">
+                      <div className="shrink-0 text-right flex flex-col items-end gap-1.5">
                         {isSkinUnlocked ? (
                           <span className="text-xs font-bold text-emerald-400 bg-emerald-500/10 px-2.5 py-1 rounded-full border border-emerald-500/30 block">
                             Açık
                           </span>
+                        ) : cloudflareStorage.hasBoardDiscount(skin.id) ? (
+                          <span className="text-xs font-black text-rose-200 bg-rose-500/25 px-2.5 py-1 rounded-full border border-rose-400/50 block tabular-nums animate-pulse">
+                            %50 ÇEK AKTİF
+                          </span>
                         ) : (
                           <span className="text-xs font-bold text-amber-200 bg-amber-500/20 px-2.5 py-1 rounded-full border border-amber-400/40 block tabular-nums">
-                            🪙 {skin.requiredCoins}
+                            🪙 {formatCoins(skin.requiredCoins)}
                           </span>
                         )}
+                        {!isSkinEquipped &&
+                          (isSkinUnlocked ? (
+                            <button
+                              onClick={e => {
+                                e.stopPropagation();
+                                handleEquip(skin);
+                              }}
+                              className="px-3 py-1.5 rounded-xl font-serif-tavla text-[11px] font-black transition-all active:scale-95 shadow bg-emerald-500 hover:bg-emerald-400 text-stone-950"
+                            >
+                              KUŞAN
+                            </button>
+                          ) : cloudflareStorage.hasBoardDiscount(skin.id) ? (
+                            <button
+                              onClick={e => {
+                                e.stopPropagation();
+                                handlePurchase(skin, boardDiscountPrice(skin.requiredCoins));
+                              }}
+                              className="px-3 py-1.5 rounded-xl font-serif-tavla text-[11px] font-black transition-all active:scale-95 shadow bg-gradient-to-r from-rose-500 to-amber-500 text-white tabular-nums"
+                            >
+                              🪙 {formatCoins(boardDiscountPrice(skin.requiredCoins))} AL
+                            </button>
+                          ) : (
+                            <div className="flex flex-col gap-1 items-end">
+                              <button
+                                onClick={e => {
+                                  e.stopPropagation();
+                                  handlePurchase(skin);
+                                }}
+                                className="px-3 py-1.5 rounded-xl font-serif-tavla text-[11px] font-black transition-all active:scale-95 shadow bg-white/10 hover:bg-white/20 text-amber-100 border border-white/20 tabular-nums"
+                              >
+                                🪙 {formatCoins(skin.requiredCoins)} AL
+                              </button>
+                              <button
+                                onClick={e => {
+                                  e.stopPropagation();
+                                  handleOpenDiscountAd(skin);
+                                }}
+                                className="px-3 py-1.5 rounded-xl font-serif-tavla text-[11px] font-black transition-all active:scale-95 shadow bg-amber-500 hover:bg-amber-400 text-stone-950 tabular-nums"
+                              >
+                                📺 {formatCoins(boardDiscountPrice(skin.requiredCoins))}
+                              </button>
+                            </div>
+                          ))}
                       </div>
                     </div>
                   );
@@ -388,21 +464,65 @@ export const BoardStoreModal: React.FC<BoardStoreModalProps> = ({
             <AdMobBanner format="dock_strip" className="shadow-none border-amber-500/25" />
           </div>
 
-          {/* Sticky Footer Bar with Big Prominent Close Button */}
-          <div className="p-3 sm:p-4 border-t border-white/[0.08] bg-black/60 backdrop-blur-md flex items-center justify-between shrink-0">
-            <div className="text-xs text-amber-200/70 hidden sm:block">
+          {/* Sticky Footer Bar: seçili tahta işlemi + kapatma (hep görünür) */}
+          <div className="p-3 sm:p-4 border-t border-white/[0.08] bg-black/60 backdrop-blur-md flex items-center justify-between gap-2 shrink-0">
+            <div className="text-xs text-amber-200/70 hidden md:block min-w-0">
               Seçili Tahta: <strong className="text-amber-300">{selectedSkin.name}</strong>
             </div>
+            {!isEquipped && (
+              <button
+                onClick={() => {
+                  if (isUnlocked) handleEquip(selectedSkin);
+                  else if (cloudflareStorage.hasBoardDiscount(selectedSkin.id))
+                    handlePurchase(selectedSkin, boardDiscountPrice(selectedSkin.requiredCoins));
+                  else handlePurchase(selectedSkin);
+                }}
+                className={`px-4 sm:px-6 py-2.5 rounded-2xl font-serif-tavla text-xs sm:text-sm font-black transition-all flex items-center justify-center gap-2 shadow-lg active:scale-95 shrink-0 tabular-nums ${
+                  isUnlocked
+                    ? 'bg-gradient-to-r from-emerald-500 to-emerald-600 text-stone-950'
+                    : 'bg-gradient-to-r from-amber-500 via-amber-400 to-amber-600 text-stone-950'
+                }`}
+              >
+                <span>{isUnlocked ? '🪵' : '🪙'}</span>
+                <span>
+                  {isUnlocked
+                    ? 'KUŞAN'
+                    : cloudflareStorage.hasBoardDiscount(selectedSkin.id)
+                    ? `${formatCoins(boardDiscountPrice(selectedSkin.requiredCoins))} — İNDİRİMLİ AL`
+                    : `${formatCoins(selectedSkin.requiredCoins)} — SATIN AL`}
+                </span>
+              </button>
+            )}
             <button
               onClick={onClose}
-              className="w-full sm:w-auto px-6 py-2.5 rounded-2xl bg-gradient-to-r from-stone-800 to-stone-900 hover:from-rose-900/60 hover:to-rose-800/60 text-[#fef3c7] hover:text-white font-serif-tavla text-xs sm:text-sm font-bold border border-white/20 hover:border-rose-400/50 transition-all flex items-center justify-center gap-2 shadow-lg active:scale-95 ml-auto"
+              className="px-4 sm:px-6 py-2.5 rounded-2xl bg-gradient-to-r from-stone-800 to-stone-900 hover:from-rose-900/60 hover:to-rose-800/60 text-[#fef3c7] hover:text-white font-serif-tavla text-xs sm:text-sm font-bold border border-white/20 hover:border-rose-400/50 transition-all flex items-center justify-center gap-2 shadow-lg active:scale-95 ml-auto shrink-0"
             >
               <span>✕</span>
-              <span>Pencereyi Kapat &amp; Lobiye Dön</span>
+              <span className="hidden xs:inline">Pencereyi Kapat &amp; Lobiye Dön</span>
+              <span className="xs:hidden">Kapat</span>
             </button>
           </div>
         </motion.div>
       </div>
+
+      {/* Mağaza içi indirim videosu (kendi penceresidir, akçe vermez — çek verir) */}
+      {discountSkin && (
+        <RewardedAdModal
+          isOpen={isDiscountAdOpen}
+          onClose={() => setIsDiscountAdOpen(false)}
+          onRewardClaimed={() => {}}
+          userProfile={userProfile}
+          cooldownStatus={discountCooldown}
+          initialRewardType="coins"
+          discountOffer={{
+            skinId: discountSkin.id,
+            skinName: discountSkin.name,
+            normalPrice: discountSkin.requiredCoins,
+            discountPrice: boardDiscountPrice(discountSkin.requiredCoins),
+          }}
+          onDiscountClaimed={handleDiscountClaimed}
+        />
+      )}
     </AnimatePresence>
   );
 };

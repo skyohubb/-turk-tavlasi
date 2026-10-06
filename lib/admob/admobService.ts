@@ -204,6 +204,20 @@ class AdmobService {
     }
   }
 
+  // Gerçek geçiş reklamı (2 maçta bir, kapatılabilir — AdMob politikasına uygun)
+  public async showInterstitialNative(): Promise<boolean> {
+    if (!this.isNativeAdMobAvailable()) return false;
+    try {
+      const { AdMob } = await import('@capacitor-community/admob');
+      await AdMob.prepareInterstitial({ adId: this.AD_UNITS.INTERSTITIAL });
+      await AdMob.showInterstitial();
+      return true;
+    } catch (e) {
+      console.debug('Native interstitial başarısız', e);
+      return false;
+    }
+  }
+
   // Preload rewarded video ad (AdMob best practice)
   public async prepareRewardVideo(): Promise<boolean> {
     if (!this.isNativeAdMobAvailable()) return true;

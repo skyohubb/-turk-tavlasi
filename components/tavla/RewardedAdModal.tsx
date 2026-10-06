@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { AdRewardType, AVAILABLE_REWARDS, admobService } from '@/lib/admob/admobService';
 import { soundEffects } from '@/lib/audio/soundEffects';
+import { formatCountdown } from '@/lib/format';
 import { SafeImage } from './SafeImage';
 import { UserProfile } from '@/lib/cloudflare/storage';
 
@@ -14,6 +15,9 @@ interface RewardedAdModalProps {
   userProfile?: UserProfile;
   cooldownStatus?: { eligible: boolean; remainingSeconds: number; reason: string; dailyRemaining?: number };
   initialRewardType?: AdRewardType;
+  // Mağaza indirimi modu: video karşılığı indirim çeki (akçe ödülü YOK)
+  discountOffer?: { skinId: string; skinName: string; normalPrice: number; discountPrice: number };
+  onDiscountClaimed?: (skinId: string) => void;
 }
 
 const RewardedAdModalContent: React.FC<Omit<RewardedAdModalProps, 'isOpen'>> = ({
@@ -22,14 +26,19 @@ const RewardedAdModalContent: React.FC<Omit<RewardedAdModalProps, 'isOpen'>> = (
   userProfile,
   cooldownStatus,
   initialRewardType = 'coins',
+  discountOffer,
+  onDiscountClaimed,
 }) => {
   const [selectedReward, setSelectedReward] = useState<AdRewardType>(initialRewardType);
   const [isWatchingAd, setIsWatchingAd] = useState<boolean>(false);
+  const [isNativeLoading, setIsNativeLoading] = useState<boolean>(false);
   const [videoSecondsLeft, setVideoSecondsLeft] = useState<number>(15);
   const [isVideoMuted, setIsVideoMuted] = useState<boolean>(false);
   const [rewardClaimedSuccess, setRewardClaimedSuccess] = useState<boolean>(false);
+  const [abortMsg, setAbortMsg] = useState<string>('');
   const [activeCreative, setActiveCreative] = useState(() => admobService.getRandomCreative());
   const [localCooldownSec, setLocalCooldownSec] = useState<number>(cooldownStatus?.remainingSeconds ?? 0);
+  const isNative = admobService.isNativeAdMobAvailable();
 
   // Live countdown timer for cooldown if active
   useEffect(() => {
@@ -49,7 +58,7 @@ const RewardedAdModalContent: React.FC<Omit<RewardedAdModalProps, 'isOpen'>> = (
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isWatchingAd, onClose]);
 
-  // Video Countdown effect
+  // Video Countdown effect (sadece web simülasyonu için)
   useEffect(() => {
     let timer: NodeJS.Timeout | null = null;
     if (isWatchingAd) {
@@ -58,10 +67,7 @@ const RewardedAdModalContent: React.FC<Omit<RewardedAdModalProps, 'isOpen'>> = (
           if (prev <= 1) {
             clearInterval(timer!);
             setIsWatchingAd(false);
-            setRewardClaimedSuccess(true);
-            soundEffects.playDiceRoll();
-            soundEffects.playCoinReward();
-            onRewardClaimed(selectedReward);
+            grantReward(selectedReward);
             return 0;
           }
           return prev - 1;
@@ -71,24 +77,57 @@ const RewardedAdModalContent: React.FC<Omit<RewardedAdModalProps, 'isOpen'>> = (
     return () => {
       if (timer) clearInterval(timer);
     };
-  }, [isWatchingAd, onRewardClaimed, selectedReward]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isWatchingAd, selectedReward]);
 
   const isEligible = localCooldownSec <= 0 && (cooldownStatus?.eligible ?? true);
   const dailyRemaining = cooldownStatus?.dailyRemaining ?? 6;
 
-  const handleStartWatchVideo = () => {
+  const grantReward = (reward: AdRewardType) => {
+    // Mağaza indirimi modu: akçe YOK, indirim çeki var
+    if (discountOffer && onDiscountClaimed) {
+      setRewardClaimedSuccess(true);
+      soundEffects.playDiceRoll();
+      soundEffects.playCoinReward();
+      onDiscountClaimed(discountOffer.skinId);
+      setLocalCooldownSec(admobService.REWARDED_COOLDOWN_MS / 1000);
+      return;
+    }
+    setRewardClaimedSuccess(true);
+    soundEffects.playDiceRoll();
+    soundEffects.playCoinReward();
+    onRewardClaimed(reward);
+    // Ödül alındı → sayaç baştan: yeni ödül için yeniden tam video şart
+    setLocalCooldownSec(admobService.REWARDED_COOLDOWN_MS / 1000);
+  };
+
+  const handleStartWatchVideo = async () => {
+    if (!isEligible || dailyRemaining <= 0 || isWatchingAd || isNativeLoading) return;
+    setAbortMsg('');
+    setRewardClaimedSuccess(false);
+
+    // NATIVE (Android): GERÇEK reklam. Ödül SADECE tamamlanınca verilir (AdMob politikası).
+    if (isNative) {
+      setIsNativeLoading(true);
+      const completed = await admobService.showRewardedNative();
+      setIsNativeLoading(false);
+      if (completed) {
+        grantReward(selectedReward);
+      } else {
+        setAbortMsg('Video yarım kaldı, ödül verilmedi. Ödül için videoyu sonuna kadar izleyin.');
+        soundEffects.playCheckerHit();
+      }
+      return;
+    }
+
+    // WEB: 15sn tanıtım simülasyonu (mağazada gerçek reklam gösterilir)
     setActiveCreative(admobService.getRandomCreative());
     setVideoSecondsLeft(15);
     setIsWatchingAd(true);
-    setRewardClaimedSuccess(false);
     soundEffects.playAuthenticTeaClink();
   };
 
-  const formatSeconds = (sec: number) => {
-    const m = Math.floor(sec / 60);
-    const s = sec % 60;
-    return `${m}:${s < 10 ? '0' : ''}${s}`;
-  };
+  const formatSeconds = formatCountdown;
 
   return (
     <AnimatePresence>
@@ -131,7 +170,9 @@ const RewardedAdModalContent: React.FC<Omit<RewardedAdModalProps, 'isOpen'>> = (
                   Sponsorlu Ödüllü Video
                 </h2>
                 <div className="flex items-center gap-2 text-[11px] text-amber-200/70 mt-0.5">
-                  <span className="text-amber-300 font-semibold">15 Saniyelik Sponsor Tanıtımı</span>
+                  <span className="text-amber-300 font-semibold">
+                    {isNative ? 'Gerçek sponsor videosu' : '15sn tanıtım (web önizlemesi)'}
+                  </span>
                   <span>·</span>
                   <span className="text-amber-200/90 font-mono">Günlük Kalan: {dailyRemaining}</span>
                 </div>
@@ -230,7 +271,9 @@ const RewardedAdModalContent: React.FC<Omit<RewardedAdModalProps, 'isOpen'>> = (
               {/* Success Banner if just claimed */}
               {rewardClaimedSuccess && (
                 <div className="p-3 rounded-2xl bg-emerald-500/25 border border-emerald-400/60 text-emerald-200 text-xs sm:text-sm font-serif-tavla font-bold text-center animate-bounce shadow">
-                  🎉 Tebrikler! Seçtiğiniz ödül hesabınıza başarıyla tanımlandı!
+                  {discountOffer
+                    ? `🎉 İndirim çeki kapıldı! ${discountOffer.discountPrice} akçeye almak için mağazaya dön (10 dk geçerli).`
+                    : '🎉 Tebrikler! Seçtiğiniz ödül hesabınıza başarıyla tanımlandı!'}
                 </div>
               )}
 
@@ -282,14 +325,44 @@ const RewardedAdModalContent: React.FC<Omit<RewardedAdModalProps, 'isOpen'>> = (
               {/* Heading for Reward Selection */}
               <div className="flex items-center justify-between">
                 <span className="text-xs uppercase font-black tracking-wider text-amber-300/90 font-serif-tavla">
-                  Kazanmak İstediğiniz İkramı Seçin:
+                  {discountOffer
+                    ? 'Videoyu Tam İzle → İndirimi Kap:'
+                    : 'İkramı Seç → Videoyu Tam İzle → Ödülü Al:'}
                 </span>
                 <span className="text-[10px] text-amber-200/60 font-mono">
-                  15sn Video = 1 İkram
+                  1 video = 1 ödül
                 </span>
               </div>
 
-              {/* Rewards List */}
+              {/* Mağaza indirim teklifi kartı */}
+              {discountOffer ? (
+                <div className="p-4 rounded-2xl border-2 border-amber-400 bg-amber-500/15 ring-2 ring-amber-400/40 shadow-lg">
+                  <div className="flex items-center justify-between gap-2 mb-1.5">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className="text-2xl">🪵</span>
+                      <div className="font-serif-tavla font-bold text-xs sm:text-sm text-white truncate">
+                        {discountOffer.skinName}
+                      </div>
+                    </div>
+                    <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-rose-500 text-white border border-rose-300 shrink-0">
+                      %50 İndirim
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-center gap-3 py-1.5">
+                    <span className="text-sm text-white/50 line-through tabular-nums">
+                      🪙 {discountOffer.normalPrice}
+                    </span>
+                    <span className="text-lg">→</span>
+                    <span className="text-xl font-black text-amber-300 tabular-nums">
+                      🪙 {discountOffer.discountPrice}
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-amber-100/70 leading-snug text-center">
+                    Video bitince indirim çeki 10 dakika geçerli olur. İndirimli fiyatla almak için mağazaya dön.
+                  </p>
+                </div>
+              ) : (
+              /* Rewards List */
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 {AVAILABLE_REWARDS.map(r => {
                   const isSelected = selectedReward === r.type;
@@ -332,9 +405,20 @@ const RewardedAdModalContent: React.FC<Omit<RewardedAdModalProps, 'isOpen'>> = (
                   );
                 })}
               </div>
+              )}
 
               {/* Bottom Action Bar */}
-              <div className="pt-3 border-t border-white/[0.08] flex items-center justify-between gap-3">
+              <div className="pt-3 border-t border-white/[0.08] space-y-2">
+                {abortMsg && (
+                  <div className="p-2.5 rounded-xl bg-rose-500/20 border border-rose-400/50 text-rose-200 text-[11px] font-bold text-center">
+                    {abortMsg}
+                  </div>
+                )}
+                <p className="text-[10px] text-amber-200/60 text-center leading-relaxed">
+                  Ödül, video tamamlanınca hesabına eklenir. Yarım bırakılırsa ödül verilmez.
+                  Her ödül için yeni bir video izlenir.
+                </p>
+                <div className="flex items-center justify-between gap-3">
                 <button
                   onClick={onClose}
                   className="px-4 py-2.5 rounded-full bg-white/[0.06] hover:bg-white/[0.14] text-amber-200/80 hover:text-white font-serif-tavla text-xs font-bold transition-colors"
@@ -344,26 +428,31 @@ const RewardedAdModalContent: React.FC<Omit<RewardedAdModalProps, 'isOpen'>> = (
 
                 <button
                   onClick={handleStartWatchVideo}
-                  disabled={!isEligible || dailyRemaining <= 0}
+                  disabled={!isEligible || dailyRemaining <= 0 || isNativeLoading}
                   className={`px-6 py-2.5 rounded-full font-serif-tavla font-black text-xs sm:text-sm tracking-wider shadow-lg transition-all flex items-center gap-2 ${
-                    isEligible && dailyRemaining > 0
+                    isEligible && dailyRemaining > 0 && !isNativeLoading
                       ? 'bg-gradient-to-r from-amber-500 via-amber-400 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-stone-950 cursor-pointer hover:scale-105 active:scale-95 border border-amber-300 shadow-amber-500/30'
                       : 'bg-white/[0.05] text-white/35 border border-white/5 cursor-not-allowed'
                   }`}
                 >
                   <span>📺</span>
                   <span>
-                    {!isEligible
-                      ? `BEKLEMEDE (${formatSeconds(localCooldownSec)})`
+                    {isNativeLoading
+                      ? 'REKLAM AÇILIYOR...'
+                      : !isEligible
+                      ? `SONRAKİ İKRAM: ${formatSeconds(localCooldownSec)}`
                       : dailyRemaining <= 0
                       ? 'GÜNLÜK LİMİT DOLDU'
+                      : discountOffer
+                      ? `İZLE → %50 İNDİRİMİ KAP (${discountOffer.discountPrice} 🪙)`
                       : selectedReward === 'energy'
-                      ? 'VİDEOYU İZLE & CANI (5/5) AL'
+                      ? 'İZLE → CANI (5/5) AL'
                       : selectedReward === 'coins'
-                      ? 'VİDEOYU İZLE & 500 AKÇE AL'
-                      : 'VİDEOYU İZLE & ÖDÜLÜ AL'}
+                      ? 'İZLE → 500 AKÇE AL'
+                      : 'İZLE → ÖDÜLÜ AL'}
                   </span>
                 </button>
+                </div>
               </div>
             </div>
           )}

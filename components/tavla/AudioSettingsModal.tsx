@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { soundEffects } from '@/lib/audio/soundEffects';
+import { getLiteMode, setLiteMode } from '@/lib/perfMode';
 import { SafeImage } from './SafeImage';
 import { AdMobBanner } from './AdMobBanner';
 
@@ -18,6 +19,7 @@ export const AudioSettingsModal: React.FC<AudioSettingsModalProps> = ({
   const [isMuted, setIsMuted] = useState<boolean>(() => soundEffects.getIsMuted());
   const [ambientVol, setAmbientVol] = useState<number>(() => soundEffects.getAmbientVolume());
   const [sfxVol, setSfxVol] = useState<number>(() => soundEffects.getSfxVolume());
+  const [liteMode, setLiteModeState] = useState<boolean>(() => getLiteMode());
 
   useEffect(() => {
     if (!isOpen) return;
@@ -209,6 +211,39 @@ export const AudioSettingsModal: React.FC<AudioSettingsModalProps> = ({
               >
                 <span>🎲 Ahşap Zar</span>
               </button>
+            </div>
+
+            {/* Hafif Mod: düşük donanımlı telefonlar için */}
+            <div className="p-3.5 rounded-2xl bg-emerald-500/[0.07] border border-emerald-400/25 space-y-1.5">
+              <button
+                onClick={() => {
+                  const next = !liteMode;
+                  setLiteModeState(next);
+                  setLiteMode(next);
+                }}
+                className="w-full flex items-center justify-between text-xs"
+              >
+                <span className="flex items-center gap-1.5">
+                  <span>🪶</span>
+                  <span className="font-serif-tavla font-bold text-[#fef3c7]">
+                    Hafif Mod (Kasma Varsa Aç)
+                  </span>
+                </span>
+                <span
+                  className={`relative w-10 h-5.5 rounded-full transition-colors shrink-0 ${
+                    liteMode ? 'bg-emerald-500' : 'bg-white/15'
+                  }`}
+                >
+                  <span
+                    className={`absolute top-0.5 w-4.5 h-4.5 rounded-full bg-white shadow transition-all ${
+                      liteMode ? 'left-[22px]' : 'left-0.5'
+                    }`}
+                  />
+                </span>
+              </button>
+              <p className="text-[11px] text-amber-200/60 leading-relaxed">
+                Bulanıklık ve ışıma efektlerini kısar, oyun aynı hızda ama daha akıcı çalışır. Eski telefonlar için birebirdir.
+              </p>
             </div>
           </div>
 

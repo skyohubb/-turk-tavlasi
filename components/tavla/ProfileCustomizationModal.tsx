@@ -12,6 +12,7 @@ import {
 } from '@/lib/tavla/customizationData';
 import { cloudflareStorage, UserProfile } from '@/lib/cloudflare/storage';
 import { soundEffects } from '@/lib/audio/soundEffects';
+import { useToast } from '@/hooks/useToast';
 import { PlayerAvatar } from './PlayerAvatar';
 import { SafeImage } from './SafeImage';
 import { AdMobBanner } from './AdMobBanner';
@@ -37,7 +38,11 @@ const ProfileCustomizationModalContent: React.FC<{
     userProfile.boardSkinId || 'board_ceviz_klasik'
   );
   const [customName, setCustomName] = useState<string>(userProfile.name);
-  const [toastMsg, setToastMsg] = useState<string>('');
+  const { msg: toastMsg, show: triggerToast } = useToast(2800);
+  const [customPhoto, setCustomPhoto] = useState<string | null>(() =>
+    userProfile.avatarId === 'custom_photo' ? userProfile.avatar : null
+  );
+  const fileInputRef = React.useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -50,13 +55,6 @@ const ProfileCustomizationModalContent: React.FC<{
   const unlockedAvatars = userProfile.unlockedAvatars || ['tavla_cirak', 'cayci_rustem'];
   const unlockedFrames = userProfile.unlockedFrames || ['frame_classic_wood'];
   const unlockedBoardSkins = userProfile.unlockedBoardSkins || ['board_ceviz_klasik'];
-
-  const triggerToast = (msg: string) => {
-    setToastMsg(msg);
-    setTimeout(() => {
-      setToastMsg(prev => (prev === msg ? '' : prev));
-    }, 2800);
-  };
 
   const handleSelectAvatar = (av: AvatarStyle) => {
     const isUnlocked =
@@ -171,13 +169,30 @@ const ProfileCustomizationModalContent: React.FC<{
   };
 
   const handleSaveProfile = () => {
+    const cleanName = customName.trim().slice(0, 22) || userProfile.name;
+    // Özel fotoğraf seçiliyse onu koru (listede yok diye sıfırlama!)
+    if (selectedAvatarId === 'custom_photo' && customPhoto) {
+      const updatedProfile: UserProfile = {
+        ...userProfile,
+        name: cleanName,
+        avatarId: 'custom_photo',
+        avatar: customPhoto,
+        frameId: selectedFrameId,
+        boardSkinId: selectedBoardSkinId,
+      };
+      cloudflareStorage.saveProfile(updatedProfile);
+      soundEffects.playCoinReward();
+      onClose();
+      return;
+    }
+
     const activeAvatar =
       COFFEEHOUSE_AVATARS.find(a => a.id === selectedAvatarId) ||
       COFFEEHOUSE_AVATARS[0];
 
     const updatedProfile: UserProfile = {
       ...userProfile,
-      name: customName.trim() || userProfile.name,
+      name: cleanName,
       avatarId: selectedAvatarId,
       avatar: activeAvatar.avatarUrl,
       frameId: selectedFrameId,
@@ -190,9 +205,68 @@ const ProfileCustomizationModalContent: React.FC<{
     onClose();
   };
 
+  // Telefonda çek/yükle → 256px'e küçült → cihazda sakla (sunucu YOK)
+  const handlePhotoFile = (file: File) => {
+    if (!file.type.startsWith('image/')) {
+      triggerToast('Lütfen bir resim dosyası seçin!');
+      return;
+    }
+    if (file.size > 8 * 1024 * 1024) {
+      triggerToast('Resim 8MB altında olmalı!');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      const img = new Image();
+      img.onload = () => {
+        const S = 256;
+        const canvas = document.createElement('canvas');
+        canvas.width = S;
+        canvas.height = S;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          triggerToast('Resim işlenemedi!');
+          return;
+        }
+        const side = Math.min(img.width, img.height);
+        ctx.drawImage(
+          img,
+          (img.width - side) / 2,
+          (img.height - side) / 2,
+          side,
+          side,
+          0,
+          0,
+          S,
+          S
+        );
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.82);
+        setCustomPhoto(dataUrl);
+        setSelectedAvatarId('custom_photo');
+        soundEffects.playCheckerDrop();
+        triggerToast('📷 Fotoğrafınız hazır! Kaydetmeyi unutmayın.');
+      };
+      img.onerror = () => triggerToast('Resim okunamadı!');
+      img.src = reader.result as string;
+    };
+    reader.onerror = () => triggerToast('Dosya okunamadı!');
+    reader.readAsDataURL(file);
+  };
+
   const previewAvatar =
-    COFFEEHOUSE_AVATARS.find(a => a.id === selectedAvatarId) ||
-    COFFEEHOUSE_AVATARS[0];
+    selectedAvatarId === 'custom_photo'
+      ? {
+          id: 'custom_photo',
+          name: 'Kendi Fotoğrafım',
+          title: userProfile.title,
+          avatarUrl: customPhoto || userProfile.avatar,
+          personalityTrait: 'Özgün',
+          description: 'Telefondan yüklediğiniz profil fotoğrafınız.',
+          requiredLevel: 1,
+          requiredCoins: 0,
+        }
+      : COFFEEHOUSE_AVATARS.find(a => a.id === selectedAvatarId) ||
+        COFFEEHOUSE_AVATARS[0];
 
   const getRarityBadge = (rarity: AvatarFrame['rarity']) => {
     switch (rarity) {
@@ -297,8 +371,13 @@ const ProfileCustomizationModalContent: React.FC<{
                       type="text"
                       value={customName}
                       onChange={e => setCustomName(e.target.value)}
+                      onKeyDown={e => {
+                        if (e.key === 'Enter') handleSaveProfile();
+                      }}
                       maxLength={22}
-                      className="font-serif-tavla font-bold text-sm sm:text-base text-[#fef3c7] bg-[#140b05] border border-[#3b1f10] rounded-lg px-2.5 py-1 focus:border-[#fbbf24] outline-none"
+                      inputMode="text"
+                      autoComplete="nickname"
+                      className="font-serif-tavla font-bold text-sm sm:text-base text-[#fef3c7] bg-[#140b05] border border-[#3b1f10] rounded-lg px-2.5 py-1 focus:border-[#fbbf24] outline-none w-full max-w-[180px]"
                       placeholder="Oyuncu Adı"
                     />
                     <span className="text-xs text-[#d97706]" title="Adınızı değiştirebilirsiniz">✏️</span>
@@ -370,6 +449,58 @@ const ProfileCustomizationModalContent: React.FC<{
             {/* TAB 1: Avatars Roster */}
             {activeTab === 'avatars' && (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                {/* Telefondan fotoğraf yükleme kartı (sunucusuz, cihazda saklanır) */}
+                <div
+                  onClick={() => fileInputRef.current?.click()}
+                  className={`p-3.5 rounded-2xl border transition-all flex flex-col justify-between cursor-pointer ${
+                    selectedAvatarId === 'custom_photo'
+                      ? 'border-[#fbbf24] bg-[#2a170e] ring-2 ring-[#fbbf24]/60 shadow-lg'
+                      : 'border-dashed border-[#78350f] bg-[#140b05] hover:border-[#fbbf24]'
+                  }`}
+                >
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={e => {
+                      const f = e.target.files?.[0];
+                      if (f) handlePhotoFile(f);
+                      e.target.value = '';
+                    }}
+                  />
+                  <div className="flex items-start gap-3 mb-2.5">
+                    <PlayerAvatar
+                      avatarUrl={customPhoto || '/images/avatar_genc_cirak.jpg'}
+                      frameId={selectedFrameId}
+                      size={52}
+                      showBadge={false}
+                    />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-1">
+                        <span className="font-serif-tavla font-bold text-sm text-[#fef3c7] truncate">
+                          📷 Kendi Fotoğrafım
+                        </span>
+                        {selectedAvatarId === 'custom_photo' ? (
+                          <span className="text-[10px] text-[#10b981] font-bold bg-[#064e3b]/50 px-2 py-0.5 rounded border border-[#10b981]/40 shrink-0">
+                            ✓ SEÇİLİ
+                          </span>
+                        ) : (
+                          <span className="text-[10px] text-[#38bdf8] font-bold bg-[#0c4a6e]/50 px-2 py-0.5 rounded border border-[#38bdf8]/40 shrink-0">
+                            {customPhoto ? 'HAZIR' : 'YÜKLE'}
+                          </span>
+                        )}
+                      </div>
+                      <span className="text-xs text-[#d97706] block font-medium">
+                        Galeriden seç veya kamerayla çek
+                      </span>
+                      <p className="text-[11px] text-[#a88a6d] leading-snug mt-1.5">
+                        Resim telefonda küçültülüp saklanır, hiçbir yere yüklenmez.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
                 {COFFEEHOUSE_AVATARS.map(av => {
                   const isSelected = selectedAvatarId === av.id;
                   const isUnlocked =

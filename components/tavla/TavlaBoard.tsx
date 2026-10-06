@@ -35,6 +35,8 @@ import { PlayerAvatar } from './PlayerAvatar';
 import { InGameActionDock, ChatVisibilityMode } from './InGameActionDock';
 import { SafeImage } from './SafeImage';
 import { evaluateMoveAdvice, MoveAdvice } from '@/lib/tavla/moveAdvisor';
+import { blitzClock, useBlitzSeconds } from '@/lib/tavla/blitzClock';
+import { formatCoins } from '@/lib/format';
 import { LeaderboardPlayer } from '@/app/api/leaderboard/route';
 
 interface TavlaBoardProps {
@@ -59,6 +61,48 @@ interface ValidTarget {
   combinedDice?: [number, number];
   intermediatePoint?: number;
 }
+
+// Blitz rozetleri: harici saate abone olan minik bileşenler.
+// Saniyede bir SADECE bunlar tazelenir, tahtanın tamamı değil.
+const BlitzTopBadge: React.FC = React.memo(() => {
+  const seconds = useBlitzSeconds();
+  return (
+    <div
+      className={`px-3 py-1 sm:px-4 sm:py-1.5 rounded-full font-serif-tavla font-black text-xs sm:text-sm flex items-center gap-2 border transition-all duration-300 ${
+        seconds <= 5
+          ? 'bg-rose-500/30 text-rose-300 border-rose-500 shadow-[0_0_20px_rgba(244,63,94,0.6)] animate-pulse'
+          : 'bg-amber-500/20 text-amber-200 border-amber-400/50 shadow-[0_0_15px_rgba(245,158,11,0.25)]'
+      }`}
+    >
+      <span className="text-sm">⚡</span>
+      <span className="hidden sm:inline">BLITZ (15sn):</span>
+      <span className="font-mono tabular-nums text-sm sm:text-base font-black px-2 py-0.2 rounded bg-black/40 border border-white/20">
+        {seconds}s
+      </span>
+    </div>
+  );
+});
+BlitzTopBadge.displayName = 'BlitzTopBadge';
+
+const BlitzArenaBadge: React.FC = React.memo(() => {
+  const seconds = useBlitzSeconds();
+  return (
+    <div className="absolute top-1.5 sm:top-2 z-20 flex items-center gap-1.5 px-3 py-1 rounded-full bg-black/80 backdrop-blur-md border border-rose-400/60 shadow-lg">
+      <span className="text-rose-400 text-xs animate-bounce">⚡</span>
+      <span className="text-[10px] uppercase font-bold text-amber-200">Hamle Süreniz:</span>
+      <span
+        className={`font-mono font-black text-xs sm:text-sm px-2 py-0.2 rounded ${
+          seconds <= 5
+            ? 'bg-rose-500 text-white animate-pulse'
+            : 'bg-amber-500/30 text-amber-300'
+        }`}
+      >
+        {seconds} sn
+      </span>
+    </div>
+  );
+});
+BlitzArenaBadge.displayName = 'BlitzArenaBadge';
 
 export const TavlaBoard: React.FC<TavlaBoardProps> = ({
   opponent,
@@ -103,7 +147,10 @@ export const TavlaBoard: React.FC<TavlaBoardProps> = ({
 
   // Blitz Mode (15-Second Turn Limit & Boosted Coin Rewards)
   const isBlitz = gameMode === 'blitz';
-  const [blitzTimer, setBlitzTimer] = useState<number>(15);
+  // Sırası gelen taraf insansa hamle yapabilir (2 kişilikte iki taraf da insan)
+  const isHumanTurn = turn === 'white' || gameMode === 'local_2p';
+  // Not: geri sayım blitzClock'ta yaşar (harici store). Bu bileşen saniyede
+  // bir render OLMAZ; sadece BlitzTopBadge/BlitzArenaBadge abone olur.
 
   // Usta Hamle Danışmanı (Move Advisor)
   const [isAdvisorEnabled, setIsAdvisorEnabled] = useState<boolean>(true);
@@ -149,12 +196,17 @@ export const TavlaBoard: React.FC<TavlaBoardProps> = ({
   // Roll history for statistics
   const currentMatchRolls = useRef<string[]>([]);
 
-  // Show quick notification toast
-  const triggerToast = (msg: string) => {
+  // Show quick notification toast (oynanışı engellemez: tıklamayı geçirir,
+  // kısa sürer, sık gelen önemsiz bildirimleri yutar)
+  const lastToastAt = useRef<number>(0);
+  const triggerToast = (msg: string, important: boolean = false) => {
+    const now = Date.now();
+    if (!important && now - lastToastAt.current < 900) return;
+    lastToastAt.current = now;
     setLastActionToast(msg);
     setTimeout(() => {
       setLastActionToast(prev => (prev === msg ? '' : prev));
-    }, 2800);
+    }, important ? 2600 : 1600);
   };
 
   // Check Game End after each state change
@@ -245,7 +297,8 @@ export const TavlaBoard: React.FC<TavlaBoardProps> = ({
       return;
     }
 
-    const uniqueDice = Array.from(new Set(moves));
+    // Büyük-zar-zorunluluğuna uyar (seçim ekranıyla aynı kural)
+    const uniqueDice = Array.from(new Set(filterForcedDice(currentBoard, player, moves)));
     let hasAnyLegal = false;
 
     for (const d of uniqueDice) {
@@ -273,7 +326,7 @@ export const TavlaBoard: React.FC<TavlaBoardProps> = ({
     setValidTargets([]);
     setTurnSnapshots([]);
     if (isBlitz) {
-      setBlitzTimer(15);
+      blitzClock.reset();
     }
     const nextTurn = turn === 'white' ? 'black' : 'white';
     setTurn(nextTurn);
@@ -284,38 +337,37 @@ export const TavlaBoard: React.FC<TavlaBoardProps> = ({
   const evaluateGameEndRef = useRef(evaluateGameEnd);
   const rollDiceRef = useRef(rollDice);
   const boardRef = useRef(board);
+  const turnRef = useRef(turn);
 
   useEffect(() => {
     endTurnRef.current = endTurn;
     evaluateGameEndRef.current = evaluateGameEnd;
     rollDiceRef.current = rollDice;
     boardRef.current = board;
+    turnRef.current = turn;
   });
 
-  // Blitz 15-Second Turn Countdown Timer
+  // Blitz 15-Second Turn Countdown — saat harici store'da, bu effect sadece
+  // tur/değişimde saati kurar ve süre-dolumu hamlesini bağlar.
   useEffect(() => {
-    if (!isBlitz || gameEnded) return;
-
-    const interval = setInterval(() => {
-      setBlitzTimer(prev => {
-        if (prev <= 1) {
-          if (turn === 'white') {
-            soundEffects.playCheckerHit();
-            setTimeout(() => {
-              setLastActionToast('⚡ 15 saniyelik hamle süreniz doldu! Sıra rakibe devredildi.');
-              endTurnRef.current(boardRef.current);
-            }, 0);
-          }
-          return 0;
-        }
-        if (prev <= 6 && turn === 'white') {
-          soundEffects.playCheckerDrop();
-        }
-        return prev - 1;
-      });
-    }, 1000);
-
-    return () => clearInterval(interval);
+    if (!isBlitz || gameEnded) {
+      blitzClock.stop();
+      return;
+    }
+    blitzClock.setTurn(turn);
+    blitzClock.reset();
+    blitzClock.onExpire(() => {
+      // Sadece beyazın (insanın) süresi dolarsa sıra geçer
+      if (turnRef.current === 'white') {
+        soundEffects.playCheckerHit();
+        setLastActionToast('⚡ 15 saniyelik hamle süreniz doldu! Sıra rakibe devredildi.');
+        endTurnRef.current(boardRef.current);
+      }
+    });
+    blitzClock.start();
+    return () => {
+      blitzClock.stop();
+    };
   }, [isBlitz, turn, gameEnded]);
 
   // Undo countdown timer effect
@@ -370,18 +422,15 @@ export const TavlaBoard: React.FC<TavlaBoardProps> = ({
 
     if (move.isHit) {
       soundEffects.playCheckerHit();
-      triggerToast('💥 Usta Vurgunu! Rakip pul kırıldı!');
+      triggerToast('💥 Usta Vurgunu! Rakip pul kırıldı!', true);
     } else if (move.to === 'off') {
       soundEffects.playCheckerDrop();
-      triggerToast('🎯 Usta Toplaması! Pul tahtadan alındı!');
     } else {
       soundEffects.playCheckerSlide();
-      triggerToast(`✨ Usta Hamlesi: ${adviceToApply.title}`);
     }
 
     if (isBlitz) {
-      setBlitzTimer(prev => Math.min(15, prev + 3));
-      triggerToast('⚡ +3s Blitz Ekstra Süre Bonusu!');
+      blitzClock.addBonus(3);
     }
 
     setMasterStreak(prev => {
@@ -432,8 +481,6 @@ export const TavlaBoard: React.FC<TavlaBoardProps> = ({
 
   // Handle Point or Bar Click for Moving
   const handleSourceSelect = (from: number | 'bar') => {
-    const isHumanTurn =
-      turn === 'white' || gameMode === 'local_2p';
     if (!isHumanTurn) return;
     if (dice === null || remainingMoves.length === 0) return;
 
@@ -486,10 +533,9 @@ export const TavlaBoard: React.FC<TavlaBoardProps> = ({
 
     if (target.isHit) {
       soundEffects.playCheckerHit();
-      triggerToast('💥 Vurgun! Rakip pul kırıldı!');
+      triggerToast('💥 Vurgun! Rakip pul kırıldı!', true);
     } else if (target.to === 'off') {
       soundEffects.playCheckerDrop();
-      triggerToast('🎯 Pul toplandı!');
     } else {
       soundEffects.playCheckerDrop();
     }
@@ -497,8 +543,7 @@ export const TavlaBoard: React.FC<TavlaBoardProps> = ({
     // Did user execute the advised master move?
     if (adviceResult.bestAdvice && selectedPoint === adviceResult.bestAdvice.move.from && target.to === adviceResult.bestAdvice.move.to) {
       if (isBlitz) {
-        setBlitzTimer(prev => Math.min(15, prev + 3));
-        triggerToast('⚡ +3s Blitz Ekstra Süre Bonusu!');
+        blitzClock.addBonus(3);
       }
       setMasterStreak(prev => {
         const next = prev + 1;
@@ -634,10 +679,12 @@ export const TavlaBoard: React.FC<TavlaBoardProps> = ({
     const isOdd = pointIndex % 2 === 1;
 
     // Check if this point can be selected (has current player checkers)
+    // local_2p'de siyah da insandır — sırası gelen taraf oynar
+    const isHumanSide = turn === 'white' || gameMode === 'local_2p';
     const canSelect =
-      turn === 'white' &&
-      board.bar.white === 0 &&
-      pt.color === 'white' &&
+      isHumanSide &&
+      (turn === 'white' ? board.bar.white === 0 : board.bar.black === 0) &&
+      pt.color === turn &&
       pt.count > 0 &&
       dice !== null &&
       remainingMoves.length > 0;
@@ -697,44 +744,35 @@ export const TavlaBoard: React.FC<TavlaBoardProps> = ({
           {pointIndex + 1}
         </span>
 
-        {/* Valid Target Glow Ring */}
+        {/* Valid Target Glow Ring (büyük dokunma hedefi, statik) */}
         {isTarget && (
-          <motion.div
-            initial={{ scale: 0.8, opacity: 0 }}
-            animate={{ scale: [1, 1.15, 1], opacity: [0.7, 1, 0.7] }}
-            transition={{ type: 'tween', duration: 1.2, repeat: Infinity }}
+          <div
             className={`absolute ${
               isTop ? 'bottom-2' : 'top-2'
-            } z-20 w-6 h-6 sm:w-8 sm:h-8 rounded-full bg-[#10b981]/25 border-2 border-[#34d399] flex items-center justify-center shadow-[0_0_12px_rgba(52,211,153,0.8)]`}
+            } z-20 w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-[#10b981]/30 border-[3px] border-[#34d399] flex items-center justify-center shadow-[0_0_16px_rgba(52,211,153,0.9)]`}
           >
-            <span className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-[#34d399]" />
-          </motion.div>
+            <span className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full bg-[#34d399]" />
+          </div>
         )}
 
-        {/* Advisor Recommended Source Highlight */}
+        {/* Advisor Recommended Source Highlight (statik rozet) */}
         {isAdvisorEnabled && adviceResult.bestAdvice?.move.from === pointIndex && (
-          <motion.div
-            initial={{ scale: 0.8 }}
-            animate={{ scale: [1, 1.15, 1], y: isTop ? [0, 3, 0] : [0, -3, 0] }}
-            transition={{ type: 'tween', duration: 1.4, repeat: Infinity }}
+          <div
             className={`absolute ${isTop ? 'top-4' : 'bottom-4'} z-30 px-1.5 py-0.5 rounded-full bg-gradient-to-r from-amber-400 to-amber-600 border border-amber-200 text-stone-950 font-bold text-[8px] sm:text-[9px] shadow-[0_0_15px_rgba(245,158,11,0.9)] flex items-center gap-0.5 pointer-events-none`}
           >
             <span>👑</span>
             <span className="hidden sm:inline">Usta</span>
-          </motion.div>
+          </div>
         )}
 
-        {/* Advisor Recommended Target Highlight */}
+        {/* Advisor Recommended Target Highlight (statik rozet) */}
         {isAdvisorEnabled && adviceResult.bestAdvice?.move.to === pointIndex && (
-          <motion.div
-            initial={{ scale: 0.8 }}
-            animate={{ scale: [1, 1.15, 1], y: isTop ? [0, -3, 0] : [0, 3, 0] }}
-            transition={{ type: 'tween', duration: 1.4, repeat: Infinity, delay: 0.2 }}
+          <div
             className={`absolute ${isTop ? 'bottom-2' : 'top-2'} z-30 px-1.5 py-0.5 rounded-full bg-gradient-to-r from-cyan-400 to-blue-500 border border-cyan-200 text-white font-bold text-[8px] sm:text-[9px] shadow-[0_0_15px_rgba(6,182,212,0.9)] flex items-center gap-0.5 pointer-events-none`}
           >
             <span>🎯</span>
             <span className="hidden sm:inline">Hedef</span>
-          </motion.div>
+          </div>
         )}
 
         {/* Realistic Vertical Stack of Checkers */}
@@ -753,7 +791,7 @@ export const TavlaBoard: React.FC<TavlaBoardProps> = ({
                 >
                   <CheckerPiece
                     color={pt.color!}
-                    className="w-[20px] h-[20px] xs:w-[27px] xs:h-[27px] sm:w-[32px] sm:h-[32px] md:w-[36px] md:h-[36px]"
+                    className="w-[23px] h-[23px] xs:w-[29px] xs:h-[29px] sm:w-[34px] sm:h-[34px] md:w-[38px] md:h-[38px]"
                     isSelected={isTopmost && isSelected}
                     isLegalTarget={isTopmost && isTarget}
                     isClickable={canSelect}
@@ -770,16 +808,16 @@ export const TavlaBoard: React.FC<TavlaBoardProps> = ({
 
   return (
     <div className="w-full max-w-6xl mx-auto flex flex-col items-center select-none px-2 sm:px-4 py-2 overflow-x-hidden">
-      {/* Toast Notification */}
+      {/* Toast Notification (dokunmayı engellemez) */}
       <AnimatePresence>
         {lastActionToast && (
           <motion.div
-            initial={{ opacity: 0, y: -20, scale: 0.9 }}
+            initial={{ opacity: 0, y: -12, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -20, scale: 0.9 }}
-            className="fixed top-16 z-50 px-5 py-2 rounded-xl bg-[#29170e]/95 border border-[#d97706] text-[#fef3c7] font-serif-tavla text-sm shadow-2xl backdrop-blur-md flex items-center gap-2"
+            exit={{ opacity: 0, y: -12, scale: 0.95 }}
+            className="fixed top-14 sm:top-16 z-50 pointer-events-none px-4 py-1.5 rounded-xl bg-[#29170e]/95 border border-[#d97706]/70 text-[#fef3c7] font-serif-tavla text-xs shadow-xl backdrop-blur-md flex items-center gap-2 max-w-[92vw]"
           >
-            <span>{lastActionToast}</span>
+            <span className="truncate">{lastActionToast}</span>
           </motion.div>
         )}
       </AnimatePresence>
@@ -793,11 +831,11 @@ export const TavlaBoard: React.FC<TavlaBoardProps> = ({
           {/* Back to Lobby Return Button */}
           <button
             onClick={onBackToLobby}
-            className="px-3.5 py-1.5 rounded-full bg-gradient-to-r from-stone-900/90 to-[#24130a]/90 hover:from-rose-950/80 hover:to-stone-900 text-amber-200 hover:text-white border border-amber-400/50 hover:border-rose-400/70 transition-all font-serif-tavla text-xs font-bold flex items-center gap-1.5 shadow-[0_4px_14px_rgba(0,0,0,0.5)] active:scale-95 shrink-0"
+            className="px-2.5 py-1.5 sm:px-3.5 rounded-full bg-gradient-to-r from-stone-900/90 to-[#24130a]/90 hover:from-rose-950/80 hover:to-stone-900 text-amber-200 hover:text-white border border-amber-400/50 hover:border-rose-400/70 transition-all font-serif-tavla text-xs font-bold flex items-center gap-1.5 shadow-[0_4px_14px_rgba(0,0,0,0.5)] active:scale-95 shrink-0"
             title="Oyundan çık ve kahvehane lobisine dön"
           >
             <span className="text-sm">⬅️</span>
-            <span>Lobiye Dön</span>
+            <span className="hidden xs:inline">Lobiye Dön</span>
           </button>
 
           {/* Opponent Profile */}
@@ -835,22 +873,31 @@ export const TavlaBoard: React.FC<TavlaBoardProps> = ({
           </div>
         </div>
 
-        {/* Blitz Mode 15s Countdown Display in Top Bar */}
+        {/* Blitz Mode 15s Countdown Display in Top Bar (yalıtılmış rozet) */}
         {isBlitz && (
-          <div className="flex items-center gap-2">
-            <div
-              className={`px-3 py-1 sm:px-4 sm:py-1.5 rounded-full font-serif-tavla font-black text-xs sm:text-sm flex items-center gap-2 border transition-all duration-300 ${
-                blitzTimer <= 5
-                  ? 'bg-rose-500/30 text-rose-300 border-rose-500 shadow-[0_0_20px_rgba(244,63,94,0.6)] animate-pulse'
-                  : 'bg-amber-500/20 text-amber-200 border-amber-400/50 shadow-[0_0_15px_rgba(245,158,11,0.25)]'
-              }`}
-            >
-              <span className="text-sm">⚡</span>
-              <span className="hidden sm:inline">BLITZ (15sn):</span>
-              <span className="font-mono tabular-nums text-sm sm:text-base font-black px-2 py-0.2 rounded bg-black/40 border border-white/20">
-                {blitzTimer}s
-              </span>
-            </div>
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+            <BlitzTopBadge />
+            {turn === 'white' && !gameEnded && userProfile.extraTimeCredits > 0 && (
+              <button
+                onClick={() => {
+                  const updated = {
+                    ...userProfile,
+                    extraTimeCredits: Math.max(0, userProfile.extraTimeCredits - 1),
+                  };
+                  cloudflareStorage.saveProfile(updated);
+                  blitzClock.addBonus(15);
+                  soundEffects.playCoinReward();
+                }}
+                className="px-2 py-1 sm:px-3 sm:py-1 rounded-full bg-cyan-500/20 hover:bg-cyan-500/35 text-cyan-200 border border-cyan-400/50 font-serif-tavla text-[10px] sm:text-xs font-black transition-all active:scale-95 flex items-center gap-1 shrink-0"
+                title={`Ek süre hakkı: ${userProfile.extraTimeCredits} — süreyi 15sn'ye tamamlar`}
+              >
+                <span>⏳</span>
+                <span>+15sn</span>
+                <span className="bg-cyan-400 text-stone-950 px-1 rounded-full text-[9px]">
+                  {userProfile.extraTimeCredits}
+                </span>
+              </button>
+            )}
           </div>
         )}
 
@@ -904,7 +951,19 @@ export const TavlaBoard: React.FC<TavlaBoardProps> = ({
             </div>
 
             {/* Center Bar (Kırık Pullar - Top Half) */}
-            <div className="w-8 xs:w-10 sm:w-14 shrink-0 bg-black/40 border-x-2 border-white/10 flex flex-col items-center justify-center p-1 relative shadow-inner">
+            <div
+              onClick={() => {
+                // 2 kişilik modda siyah da insandır: kırık pulu buradan oyuna sokar
+                if (gameMode === 'local_2p' && turn === 'black' && board.bar.black > 0) {
+                  handleSourceSelect('bar');
+                }
+              }}
+              className={`w-8 xs:w-10 sm:w-14 shrink-0 bg-black/40 border-x-2 border-white/10 flex flex-col items-center justify-center p-1 relative shadow-inner ${
+                gameMode === 'local_2p' && turn === 'black' && board.bar.black > 0
+                  ? 'cursor-pointer ring-2 ring-[#fbbf24]'
+                  : ''
+              }`}
+            >
               <span className="text-[8px] sm:text-[9px] uppercase font-bold text-amber-500/80 tracking-widest rotate-90 sm:rotate-0 mb-1">
                 BAR
               </span>
@@ -913,8 +972,10 @@ export const TavlaBoard: React.FC<TavlaBoardProps> = ({
                 <div className="my-1">
                   <CheckerPiece
                     color="black"
-                    className="w-[24px] h-[24px] xs:w-[28px] xs:h-[28px] sm:w-[32px] sm:h-[32px]"
+                    className="w-[26px] h-[26px] xs:w-[30px] xs:h-[30px] sm:w-[34px] sm:h-[34px]"
                     stackCount={board.bar.black}
+                    isSelected={selectedPoint === 'bar' && turn === 'black'}
+                    isClickable={gameMode === 'local_2p' && turn === 'black'}
                   />
                 </div>
               )}
@@ -948,21 +1009,9 @@ export const TavlaBoard: React.FC<TavlaBoardProps> = ({
               </span>
             </div>
 
-            {/* Blitz Countdown Clock In Center Arena */}
+            {/* Blitz Countdown Clock In Center Arena (yalıtılmış rozet) */}
             {isBlitz && turn === 'white' && !gameEnded && (
-              <div className="absolute top-1.5 sm:top-2 z-20 flex items-center gap-1.5 px-3 py-1 rounded-full bg-black/80 backdrop-blur-md border border-rose-400/60 shadow-lg">
-                <span className="text-rose-400 text-xs animate-bounce">⚡</span>
-                <span className="text-[10px] uppercase font-bold text-amber-200">Hamle Süreniz:</span>
-                <span
-                  className={`font-mono font-black text-xs sm:text-sm px-2 py-0.2 rounded ${
-                    blitzTimer <= 5
-                      ? 'bg-rose-500 text-white animate-pulse'
-                      : 'bg-amber-500/30 text-amber-300'
-                  }`}
-                >
-                  {blitzTimer} sn
-                </span>
-              </div>
+              <BlitzArenaBadge />
             )}
 
             {/* 3D Dice Component */}
@@ -981,7 +1030,7 @@ export const TavlaBoard: React.FC<TavlaBoardProps> = ({
 
             {/* Prominent Floating Undo Action in Center Arena when move is made */}
             <AnimatePresence>
-              {turn === 'white' && turnSnapshots.length > 1 && !gameEnded && (
+              {isHumanTurn && turnSnapshots.length > 1 && !gameEnded && (
                 <motion.div
                   initial={{ opacity: 0, y: 8, scale: 0.92 }}
                   animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -1039,7 +1088,7 @@ export const TavlaBoard: React.FC<TavlaBoardProps> = ({
                 <div className="my-1">
                   <CheckerPiece
                     color="white"
-                    className="w-[24px] h-[24px] xs:w-[28px] xs:h-[28px] sm:w-[32px] sm:h-[32px]"
+                    className="w-[26px] h-[26px] xs:w-[30px] xs:h-[30px] sm:w-[34px] sm:h-[34px]"
                     isSelected={selectedPoint === 'bar'}
                     stackCount={board.bar.white}
                     isClickable={turn === 'white'}
@@ -1128,8 +1177,11 @@ export const TavlaBoard: React.FC<TavlaBoardProps> = ({
               <span className="font-serif-tavla font-bold text-xs sm:text-sm text-[#fef3c7] group-hover:text-amber-200 transition-colors truncate max-w-[80px] xs:max-w-[120px] sm:max-w-none">
                 {userProfile.name}
               </span>
-              <span className="text-[9px] text-amber-300 font-bold bg-amber-500/20 px-1.5 py-0.2 rounded-full border border-amber-400/40">
-                🪙 {userProfile.coins}
+              <span
+                className="text-[9px] text-amber-300 font-bold bg-amber-500/20 px-1.5 py-0.2 rounded-full border border-amber-400/40 truncate max-w-[72px] sm:max-w-none"
+                title={`${userProfile.coins} akçe`}
+              >
+                🪙 {formatCoins(userProfile.coins)}
               </span>
               {isBlitz && (
                 <span className="text-[9px] text-rose-300 font-bold bg-rose-500/25 px-1.5 py-0.2 rounded-full border border-rose-400/40 animate-pulse hidden xs:inline">
@@ -1148,9 +1200,9 @@ export const TavlaBoard: React.FC<TavlaBoardProps> = ({
           {/* Undo Move Button */}
           <button
             onClick={handleUndo}
-            disabled={turnSnapshots.length <= 1 || turn !== 'white' || undosRemaining <= 0 || undoCooldownSeconds > 0}
+            disabled={turnSnapshots.length <= 1 || !isHumanTurn || undosRemaining <= 0 || undoCooldownSeconds > 0}
             className={`relative group px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-full font-serif-tavla text-[11px] sm:text-xs flex items-center gap-1 border transition-all duration-300 ${
-              turnSnapshots.length > 1 && turn === 'white' && undosRemaining > 0 && undoCooldownSeconds === 0
+              turnSnapshots.length > 1 && isHumanTurn && undosRemaining > 0 && undoCooldownSeconds === 0
                 ? 'bg-amber-500/25 hover:bg-amber-500/40 text-amber-100 border-amber-400/60 shadow-[0_4px_16px_rgba(245,158,11,0.3)] hover:scale-105 active:scale-95'
                 : 'bg-white/[0.04] text-amber-200/30 border-white/10 cursor-not-allowed'
             }`}

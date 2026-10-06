@@ -8,6 +8,8 @@ import { PlayerAvatar } from './PlayerAvatar';
 import { SafeImage } from './SafeImage';
 import { AdMobBanner } from './AdMobBanner';
 import { soundEffects } from '@/lib/audio/soundEffects';
+import { formatLongDuration } from '@/lib/format';
+import { MagazaRoom, IkramRoom, LigRoom, ProfilRoom, LobbyRoom } from './LobbyRooms';
 
 interface KahvehaneLobbyProps {
   userProfile: UserProfile;
@@ -23,6 +25,7 @@ interface KahvehaneLobbyProps {
   onOpenCustomization?: () => void;
   onOpenBoardStore?: () => void;
   rewardCooldown: { eligible: boolean; remainingSeconds: number; reason: string; dailyRemaining?: number };
+  room?: LobbyRoom;
 }
 
 export const OPPONENTS: Opponent[] = [
@@ -136,6 +139,7 @@ export const KahvehaneLobby: React.FC<KahvehaneLobbyProps> = ({
   onOpenCustomization,
   onOpenBoardStore,
   rewardCooldown,
+  room = 'oyna',
 }) => {
   const [selectedOpponent, setSelectedOpponent] = useState<Opponent>(OPPONENTS[0]);
   const [selectedMode, setSelectedMode] = useState<'ai' | 'blitz'>('ai');
@@ -158,16 +162,65 @@ export const KahvehaneLobby: React.FC<KahvehaneLobbyProps> = ({
   };
 
   // Format cooldown
-  const formatRemainingTime = (seconds: number) => {
-    const h = Math.floor(seconds / 3600);
-    const m = Math.floor((seconds % 3600) / 60);
-    const s = seconds % 60;
-    if (h > 0) return `${h} sa ${m} dk`;
-    return `${m} dk ${s} sn`;
-  };
+  const formatRemainingTime = formatLongDuration;
 
   return (
     <div className="w-full max-w-6xl mx-auto flex flex-col gap-6 px-4 py-3">
+      {/* Alt bar odaları: oyna dışındakiler hafif ve tek başına mount olur */}
+      {room === 'magaza' && (
+        <MagazaRoom
+          userProfile={userProfile}
+          rewardCooldown={rewardCooldown}
+          onOpenRewardedAd={onOpenRewardedAd}
+          onOpenLeaderboard={onOpenLeaderboard}
+          onOpenProfile={onOpenProfile}
+          onOpenStats={onOpenStats}
+          onOpenCustomization={onOpenCustomization}
+          onOpenBoardStore={onOpenBoardStore}
+          onOpenAudioSettings={onOpenAudioSettings}
+        />
+      )}
+      {room === 'ikram' && (
+        <IkramRoom
+          userProfile={userProfile}
+          rewardCooldown={rewardCooldown}
+          onOpenRewardedAd={onOpenRewardedAd}
+          onOpenLeaderboard={onOpenLeaderboard}
+          onOpenProfile={onOpenProfile}
+          onOpenStats={onOpenStats}
+          onOpenCustomization={onOpenCustomization}
+          onOpenBoardStore={onOpenBoardStore}
+          onOpenAudioSettings={onOpenAudioSettings}
+        />
+      )}
+      {room === 'lig' && (
+        <LigRoom
+          userProfile={userProfile}
+          rewardCooldown={rewardCooldown}
+          onOpenRewardedAd={onOpenRewardedAd}
+          onOpenLeaderboard={onOpenLeaderboard}
+          onOpenProfile={onOpenProfile}
+          onOpenStats={onOpenStats}
+          onOpenCustomization={onOpenCustomization}
+          onOpenBoardStore={onOpenBoardStore}
+          onOpenAudioSettings={onOpenAudioSettings}
+        />
+      )}
+      {room === 'profil' && (
+        <ProfilRoom
+          userProfile={userProfile}
+          rewardCooldown={rewardCooldown}
+          onOpenRewardedAd={onOpenRewardedAd}
+          onOpenLeaderboard={onOpenLeaderboard}
+          onOpenProfile={onOpenProfile}
+          onOpenStats={onOpenStats}
+          onOpenCustomization={onOpenCustomization}
+          onOpenBoardStore={onOpenBoardStore}
+          onOpenAudioSettings={onOpenAudioSettings}
+        />
+      )}
+      {room === 'oyna' && (
+      <>
       {/* HERO SECTION: Authentic Old Turkish Coffeehouse Atmosphere */}
       <div className="relative w-full rounded-3xl overflow-hidden border-2 border-amber-500/30 shadow-[0_25px_70px_rgba(0,0,0,0.85),0_0_35px_rgba(245,158,11,0.2)] bg-gradient-to-br from-[#1c0e07] via-[#120703] to-[#0a0301]">
         {/* Ambient Backdrop Image with Nostalgic Warm Vignette */}
@@ -842,6 +895,8 @@ export const KahvehaneLobby: React.FC<KahvehaneLobbyProps> = ({
       <div className="w-full pt-2 pb-1">
         <AdMobBanner format="banner" className="shadow-2xl" />
       </div>
+      </>
+      )}
     </div>
   );
 };

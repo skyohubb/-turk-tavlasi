@@ -13,6 +13,7 @@ export interface UserProfile {
   unlockedAvatars?: string[];
   unlockedFrames?: string[];
   unlockedBoardSkins?: string[];
+  boardDiscounts?: Record<string, number>; // skinId -> indirim bitiş zamanı (ms)
   rating: number;
   coins: number;
   energy: number;
@@ -60,8 +61,24 @@ export const DEFAULT_PROFILE: UserProfile = {
   matchCountSinceLastAd: 0,
 };
 
-const STORAGE_KEY = 'duşeş_tavla_profile_v1';
+// ASCII anahtar (bazı WebView'lerde Türkçe karakterli anahtarlar sorun çıkarır).
+// Eski 'duşeş...' anahtarındaki kayıt otomatik taşınır.
+const STORAGE_KEY = 'duses_tavla_profile_v1';
+const STORAGE_KEY_LEGACY = 'duşeş_tavla_profile_v1';
+const STORAGE_KEY_BACKUP = 'duses_tavla_profile_v1_backup';
 const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes cache for leaderboard
+
+function readSlot(key: string): UserProfile | null {
+  try {
+    const raw = localStorage.getItem(key);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== 'object' || !parsed.stats) return null;
+    return { ...DEFAULT_PROFILE, ...parsed } as UserProfile;
+  } catch {
+    return null;
+  }
+}
 
 export class CloudflareStorage {
   private profile: UserProfile | null = null;
@@ -93,21 +110,40 @@ export class CloudflareStorage {
     if (this.profile) return this.profile;
 
     if (typeof window !== 'undefined') {
-      try {
-        const stored = localStorage.getItem(STORAGE_KEY);
-        if (stored) {
-          const loaded: UserProfile = { ...DEFAULT_PROFILE, ...JSON.parse(stored) };
-          this.profile = loaded;
-          if (this.checkEnergyRegen(loaded)) {
-            this.saveProfile(loaded);
-          }
-          return this.profile;
+      // 1) ana kasa → 2) yedek kasa → 3) eski anahtar (taşı) → 4) varsayılan
+      const primary = readSlot(STORAGE_KEY);
+      if (primary) {
+        this.profile = primary;
+        if (this.checkEnergyRegen(primary)) this.saveProfile(primary);
+        return this.profile;
+      }
+      const backup = readSlot(STORAGE_KEY_BACKUP);
+      if (backup) {
+        this.profile = backup;
+        // Yedekten döndük: ana kasayı hemen onar
+        try {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(backup));
+        } catch {
+          // sessiz geç
         }
-      } catch (e) {
-        console.warn('LocalStorage read error', e);
+        if (this.checkEnergyRegen(backup)) this.saveProfile(backup);
+        return this.profile;
+      }
+      const legacy = readSlot(STORAGE_KEY_LEGACY);
+      if (legacy) {
+        this.profile = legacy;
+        this.saveProfile(legacy); // ASCII anahtara + yedeğe taşı
+        try {
+          localStorage.removeItem(STORAGE_KEY_LEGACY);
+        } catch {
+          // sessiz geç
+        }
+        return this.profile;
       }
     }
 
+    // Hiçbir kasada veri yok: varsayılanla başla ama YEDEĞİ EZME
+    // (yazma başarısız olursa diye saveProfile yedeği korur).
     this.profile = { ...DEFAULT_PROFILE };
     this.saveProfile(this.profile);
     return this.profile;
@@ -133,7 +169,15 @@ export class CloudflareStorage {
     this.profile = profile;
     if (typeof window !== 'undefined') {
       try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(profile));
+        const serialized = JSON.stringify(profile);
+        // Önce yedeği güncelle, sonra anayı yaz. Yazma yarıda kesilirse
+        // bir önceki sağlam kopya her zaman durur — veri kaybı olmaz.
+        try {
+          localStorage.setItem(STORAGE_KEY_BACKUP, serialized);
+        } catch {
+          // kota doluysa yedek atlanır, ana yazma yine denenir
+        }
+        localStorage.setItem(STORAGE_KEY, serialized);
       } catch (e) {
         console.warn('LocalStorage write error', e);
       }
@@ -276,6 +320,40 @@ export class CloudflareStorage {
     return p;
   }
 
+  // Reklam izlendi damgası: sayaç/sayaç kotalarını ilerletir, ÖDÜL VERMEZ.
+  // (Mağaza indirimi gibi ödülsüz video akışlarında global 3dk/günlük kotayı delmemek için.)
+  public stampAdWatched(): UserProfile {
+    const p = this.getProfile();
+    const today = new Date().toISOString().split('T')[0];
+    if (p.lastAdDate !== today) {
+      p.lastAdDate = today;
+      p.dailyAdsWatchedCount = 1;
+    } else {
+      p.dailyAdsWatchedCount = (p.dailyAdsWatchedCount || 0) + 1;
+    }
+    p.lastAdWatchedTimestamp = Date.now();
+    p.matchCountSinceLastAd = 0;
+    this.saveProfile(p);
+    return p;
+  }
+
+  // Tahta indirim çeki: video karşılığı X dakika geçerli indirimli fiyat hakkı.
+  public grantBoardDiscount(skinId: string, ttlMs: number): UserProfile {
+    const p = this.getProfile();
+    p.boardDiscounts = { ...(p.boardDiscounts || {}), [skinId]: Date.now() + ttlMs };
+    this.saveProfile(p);
+    return p;
+  }
+
+  public hasBoardDiscount(skinId: string): boolean {
+    const p = this.getProfile();
+    const until = p.boardDiscounts?.[skinId] || 0;
+    // Saf okuma: render sırasında yan etki YOK (önceki sürüm burada kayıt
+    // yazıp gereksiz yeniden çizim tetikliyordu). Süresi dolmuş anahtarlar
+    // bir sonraki grant çağrısında temizlenir.
+    return until > Date.now();
+  }
+
   // Usta hamlesi bonusu: galibiyet/mağlubiyet sayacını bozmadan sadece akçe + XP verir.
   public addBonusCoins(amount: number, xp: number = 15): UserProfile {
     const p = this.getProfile();
@@ -328,29 +406,35 @@ export class CloudflareStorage {
   }
 
   public async fetchLeaderboard(): Promise<Array<{ rank: number; name: string; title: string; rating: number; wins: number; mars: number }>> {
-    // Check in-memory cache to save edge calls
-    if (this.leaderboardCache && Date.now() - this.leaderboardCache.timestamp < CACHE_TTL_MS) {
-      return this.leaderboardCache.data as Array<{ rank: number; name: string; title: string; rating: number; wins: number; mars: number }>;
-    }
-
-    try {
-      const res = await fetch('/api/leaderboard');
-      if (res.ok) {
-        const data = await res.json();
-        this.leaderboardCache = { data, timestamp: Date.now() };
-        return data;
-      }
-    } catch {
-      // Fallback local simulated leaderboard
-    }
-
-    const fallback = [
+    type Row = { rank: number; name: string; title: string; rating: number; wins: number; mars: number };
+    const fallback: Row[] = [
       { rank: 1, name: 'Usta Selim', title: 'Kapalıçarşı Piri', rating: 1850, wins: 412, mars: 138 },
       { rank: 2, name: 'Hacı Dayı', title: 'Çınaraltı Şampiyonu', rating: 1720, wins: 345, mars: 98 },
       { rank: 3, name: 'Mahmut Emmi', title: 'Galata Tavla Reisi', rating: 1640, wins: 289, mars: 82 },
       { rank: 4, name: 'Derviş Cemal', title: 'Kadıköy Üstadı', rating: 1510, wins: 195, mars: 45 },
       { rank: 5, name: this.getProfile().name, title: this.getProfile().title, rating: this.getProfile().rating, wins: this.getProfile().stats.wins, mars: this.getProfile().stats.marsWins },
     ];
+
+    // Check in-memory cache to save edge calls
+    if (this.leaderboardCache && Date.now() - this.leaderboardCache.timestamp < CACHE_TTL_MS) {
+      return this.leaderboardCache.data as Row[];
+    }
+
+    try {
+      const res = await fetch('/api/leaderboard');
+      if (res.ok) {
+        const data = await res.json();
+        // API sarmalayıcı obje döner {players: [...]} — diziyi çıkar, bozuksa yedeğe düş
+        const rows: Row[] = Array.isArray(data) ? data : data?.players;
+        if (Array.isArray(rows) && rows.length > 0) {
+          this.leaderboardCache = { data: rows, timestamp: Date.now() };
+          return rows;
+        }
+      }
+    } catch {
+      // Fallback local simulated leaderboard
+    }
+
     return fallback;
   }
 }

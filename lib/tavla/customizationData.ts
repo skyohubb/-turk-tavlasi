@@ -255,7 +255,7 @@ export const BOARD_SKINS: BoardSkin[] = [
     woodType: 'Kızıl Gül Ağacı (Rosewood)',
     description: 'Derin kızıl gül ağacı gövde üzerine altın yaldızlı Osmanlı rumi ve lale motifleri. Saray nakkaşlarının el işi zarafeti.',
     previewImage: '/images/board_gul_agaci.jpg',
-    requiredCoins: 400,
+    requiredCoins: 800,
     unlockedByDefault: false,
     theme: {
       outerFrameGradient: 'from-[#4a121a] via-[#2d0910] to-[#1c0408]',
@@ -276,7 +276,7 @@ export const BOARD_SKINS: BoardSkin[] = [
     woodType: 'Altın Varaklı Meşe & İznik Çinisi',
     description: 'Topkapı Sarayı Revan Köşkü çinilerinin turkuaz ahengi, 24 ayar altın varak bordürler ve görkemli padişah tuğrası.',
     previewImage: '/images/board_topkapi_turkuaz.jpg',
-    requiredCoins: 750,
+    requiredCoins: 1500,
     unlockedByDefault: false,
     theme: {
       outerFrameGradient: 'from-[#0e3b43] via-[#082328] to-[#041316]',
@@ -297,7 +297,7 @@ export const BOARD_SKINS: BoardSkin[] = [
     woodType: 'Kara Abanoz & Hakiki Fildişi Kakma',
     description: 'Gece kadar siyah abanoz ağacı üzerine kakılmış 8 köşeli Selçuklu geometrik kündekâri yıldızları. Asil ve keskin kontrast.',
     previewImage: '/images/board_abanoz_selcuklu.jpg',
-    requiredCoins: 1000,
+    requiredCoins: 2000,
     unlockedByDefault: false,
     theme: {
       outerFrameGradient: 'from-[#27272a] via-[#18181b] to-[#09090b]',
@@ -317,8 +317,8 @@ export const BOARD_SKINS: BoardSkin[] = [
     name: 'Ege Zeytin Ağacı & Hakiki Kehribar',
     woodType: 'Asırlık Ege Zeytin Kütüğü & Kehribar',
     description: 'Dalgalı ve hareli zeytin damarları, güneşte parıldayan bal sarısı kehribar kakmalar ve Akdeniz sıcaklığı.',
-    previewImage: '/images/tavla_artisan_crest_1790523144604.jpg',
-    requiredCoins: 1250,
+    previewImage: '/images/tavla_crest.jpg',
+    requiredCoins: 2500,
     unlockedByDefault: false,
     theme: {
       outerFrameGradient: 'from-[#45320e] via-[#291e07] to-[#171003]',
@@ -334,4 +334,16 @@ export const BOARD_SKINS: BoardSkin[] = [
     },
   },
 ];
+
+// Reklamlı indirim: normal fiyat tuzlu, video izleyene %50 indirim (min 150 akçe).
+export const BOARD_AD_DISCOUNT_RATE = 0.5;
+export const BOARD_DISCOUNT_MIN_PRICE = 150;
+export const BOARD_DISCOUNT_TTL_MS = 10 * 60 * 1000; // 10 dakika geçerli
+
+export function boardDiscountPrice(requiredCoins: number): number {
+  return Math.max(
+    BOARD_DISCOUNT_MIN_PRICE,
+    Math.round(requiredCoins * (1 - BOARD_AD_DISCOUNT_RATE))
+  );
+}
 

@@ -5,9 +5,10 @@
 - Android: `versionCode 1`, `versionName 1.0.0`, `targetSdk 36` ✅ (Play'in 34 şartını karşılıyor), `minSdk 24`
 - `android/app/src/main/AndroidManifest.xml` AdMob App ID girildi ✅
 
-## 2. İmzalanmış AAB ✅ üretildi (2026-10-05)
-- Güncel dosya: `playstore/duses-tavla-v1.0.0-vc2.aab` (5 MB, TWA, **versionCode 2** — kodu 1 önden kullanıldığı için yükseltildi; sürüm adı yine 1.0.0)
-- Eski `duses-tavla-v1.0.0.aab` (code 1) artık geçersiz, Play'e yükleme — silinebilir
+## 2. İmzalanmış AAB ✅ üretildi (2026-10-06)
+- Güncel dosya: `playstore/duses-tavla-v1.0.0-vc4.aab` (5 MB, TWA, **versionCode 4**, sürüm adı 1.0.0)
+- İçerik: pullar/hedefler büyütüldü, bildirim yağmuru kesildi, gerçek AdMob ödül/geçiş akışı, mağaza %50 indirim çekleri, alt bar odaları, kayıt zırhı, 2 kişilik siyah taraf düzeltmeleri
+- Eski vc2/vc1 dosyaları geçersiz, Play'e yükleme
 - Yöntem: Bubblewrap (`playstore/twa/twa-manifest.json`), JDK 17 + build-tools 36.1.0
 - İmza: `playstore/keys/duses-release.keystore` (alias `duses`) — şifreler `playstore/keys/KEYSTORE_BILGILERI.txt` içinde
 - ⚠️ Keystore + bilgi dosyası repoya girmez (.gitignore) — USB + buluta yedekle, kaybolursa güncelleme yapamazsın

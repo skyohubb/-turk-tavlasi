@@ -4,6 +4,8 @@ import React, { useState, useEffect, useSyncExternalStore } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { TopBar } from '@/components/tavla/TopBar';
 import { KahvehaneLobby, OPPONENTS } from '@/components/tavla/KahvehaneLobby';
+import { LobbyBottomNav } from '@/components/tavla/LobbyBottomNav';
+import type { LobbyRoom } from '@/components/tavla/LobbyRooms';
 import { TavlaBoard } from '@/components/tavla/TavlaBoard';
 import { RewardedAdModal } from '@/components/tavla/RewardedAdModal';
 import { AdMobInterstitialModal } from '@/components/tavla/AdMobInterstitialModal';
@@ -16,6 +18,7 @@ import { LeaderboardModal } from '@/components/tavla/LeaderboardModal';
 import { PlayerProfileModal } from '@/components/tavla/PlayerProfileModal';
 import { cloudflareStorage } from '@/lib/cloudflare/storage';
 import { soundEffects } from '@/lib/audio/soundEffects';
+import { applyLiteMode, getLiteMode } from '@/lib/perfMode';
 import { Opponent, GameMode } from '@/lib/tavla/types';
 import { AdRewardType, admobService } from '@/lib/admob/admobService';
 import { LeaderboardPlayer } from '@/app/api/leaderboard/route';
@@ -30,6 +33,7 @@ export default function Home() {
 
   const [viewState, setViewState] = useState<'lobby' | 'game'>('lobby');
   const [lobbyTab, setLobbyTab] = useState<'opponents' | 'venues'>('opponents');
+  const [lobbyRoom, setLobbyRoom] = useState<LobbyRoom>('oyna');
   const [activeOpponent, setActiveOpponent] = useState<Opponent>(OPPONENTS[0]);
   const [activeGameMode, setActiveGameMode] = useState<GameMode>('ai');
 
@@ -72,6 +76,10 @@ export default function Home() {
 
   // Start authentic Turkish coffeehouse ambience on first interaction & refresh cooldown timer periodically
   useEffect(() => {
+    applyLiteMode(getLiteMode());
+    admobService.initialize();
+    admobService.prepareRewardVideo();
+
     const handleFirstGesture = () => {
       soundEffects.startAmbientAmbience();
       window.removeEventListener('click', handleFirstGesture);
@@ -82,7 +90,18 @@ export default function Home() {
     window.addEventListener('keydown', handleFirstGesture, { once: true });
 
     const interval = setInterval(() => {
-      setCooldown(cloudflareStorage.canWatchRewardedAd());
+      // Her saniye körü körüne render yapma: değişmediyse state'e dokunma (kasma önler)
+      setCooldown(prev => {
+        const next = cloudflareStorage.canWatchRewardedAd();
+        if (
+          prev.eligible === next.eligible &&
+          prev.remainingSeconds === next.remainingSeconds &&
+          prev.dailyRemaining === next.dailyRemaining
+        ) {
+          return prev;
+        }
+        return next;
+      });
     }, 1000);
 
     return () => {
@@ -105,6 +124,7 @@ export default function Home() {
     }
 
     cloudflareStorage.consumeEnergy(1);
+    soundEffects.playDiceCupShake();
     setActiveOpponent(opponent);
     setActiveGameMode(mode);
     setViewState('game');
@@ -128,10 +148,7 @@ export default function Home() {
   const handleRematch = () => {
     setVictoryState(prev => ({ ...prev, isOpen: false }));
 
-    if (admobService.shouldShowInterstitial()) {
-      setIsInterstitialOpen(true);
-      admobService.resetInterstitialCounter();
-    }
+    void showInterstitialIfDue();
 
     if (profile.energy <= 0) {
       setIsOutOfEnergyModalOpen(true);
@@ -149,12 +166,21 @@ export default function Home() {
   const handleGoLobby = () => {
     setVictoryState(prev => ({ ...prev, isOpen: false }));
 
-    if (admobService.shouldShowInterstitial()) {
-      setIsInterstitialOpen(true);
-      admobService.resetInterstitialCounter();
-    }
+    void showInterstitialIfDue();
 
     setViewState('lobby');
+  };
+
+  // 2 maçta bir geçiş reklamı: native varsa GERÇEK reklam, yoksa uygulama-içi sponsor kartı.
+  // Her iki durumda da sayaç sıfırlanır (üst üste reklam yok — ban koruması).
+  const showInterstitialIfDue = async () => {
+    if (!admobService.shouldShowInterstitial()) return;
+    admobService.resetInterstitialCounter();
+    if (admobService.isNativeAdMobAvailable()) {
+      await admobService.showInterstitialNative();
+      return;
+    }
+    setIsInterstitialOpen(true);
   };
 
   if (!profile) {
@@ -206,13 +232,14 @@ export default function Home() {
       {/* Main Content Area: Responsive Viewport in Game Mode */}
       <main
         className={`w-full max-w-full flex-1 flex flex-col justify-start items-center overflow-x-hidden ${
-          viewState === 'game' ? 'min-h-[100dvh] h-auto p-1 sm:p-2 overflow-y-auto' : 'py-2 sm:py-4'
+          viewState === 'game' ? 'min-h-[100dvh] h-auto p-1 sm:p-2 overflow-y-auto' : 'py-2 sm:py-4 pb-24'
         }`}
       >
         {viewState === 'lobby' ? (
           <KahvehaneLobby
             userProfile={profile}
             activeTab={lobbyTab}
+            room={lobbyRoom}
             onTabChange={setLobbyTab}
             onStartGame={handleStartGame}
             onOpenStats={() => setIsStatsOpen(true)}
@@ -254,6 +281,11 @@ export default function Home() {
           />
         )}
       </main>
+
+      {/* Alt bar odaları (sadece lobide) */}
+      {viewState === 'lobby' && (
+        <LobbyBottomNav room={lobbyRoom} onChange={setLobbyRoom} />
+      )}
 
       {/* Modals */}
       <PlayerProfileModal
