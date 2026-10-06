@@ -1,0 +1,14 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.duses.tavla",
+      "sha256_cert_fingerprints": [
+        "2226F03D7A133C816FBB51DC0ACDCA21A527918C411A1AF8A42CFBDA778D3291",
+        "DE45086EE459B34609F8315155F3B8E119788D4E809A1E855B8720CEA012A795",
+        "881D0576E9782B932992D6EB45C5B157881CA701FE155707E03C51FA38A2352A"
+      ]
+    }
+  }
+]

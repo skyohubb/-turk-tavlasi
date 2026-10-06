@@ -1,0 +1,11 @@
+{
+	"appId": "com.duses.tavla",
+	"appName": "Düşeş Tavla",
+	"webDir": "out",
+	"backgroundColor": "#120b07",
+	"android": {
+		"allowMixedContent": false,
+		"captureInput": true
+	},
+	"plugins": {}
+}
