@@ -37,7 +37,7 @@ import { SafeImage } from './SafeImage';
 import { evaluateMoveAdvice, MoveAdvice } from '@/lib/tavla/moveAdvisor';
 import { blitzClock, useBlitzSeconds } from '@/lib/tavla/blitzClock';
 import { formatCoins } from '@/lib/format';
-import { LeaderboardPlayer } from '@/app/api/leaderboard/route';
+import { LeaderboardPlayer } from '@/lib/tavla/leaderboardData';
 
 interface TavlaBoardProps {
   opponent: Opponent;
@@ -52,6 +52,9 @@ interface TavlaBoardProps {
   onOpenAudioSettings?: () => void;
   onOpenCustomization?: () => void;
   onOpenBoardStore?: () => void;
+  // Turnuva: tur ödülleri + tur rozeti
+  coinOverride?: { win: number; marsWin: number; loss: number };
+  tournamentLabel?: string;
 }
 
 interface ValidTarget {
@@ -117,6 +120,8 @@ export const TavlaBoard: React.FC<TavlaBoardProps> = ({
   onOpenAudioSettings,
   onOpenCustomization,
   onOpenBoardStore,
+  coinOverride,
+  tournamentLabel,
 }) => {
   // Not: tahta boyutları saf CSS kırılımlarıyla yönetilir (globals.css `xs` dahil).
   // JS ile pencere takibi ve ölü checkerSize/pointHeightClass kaldırıldı.
@@ -190,7 +195,7 @@ export const TavlaBoard: React.FC<TavlaBoardProps> = ({
     opponentId: opponent.id,
     opponentName: opponent.name,
     opponentAvatar: opponent.avatar,
-    isAiMatch: gameMode === 'ai' || gameMode === 'blitz',
+    isAiMatch: gameMode === 'ai' || gameMode === 'blitz' || gameMode === 'tournament',
   });
 
   // Roll history for statistics
@@ -219,7 +224,19 @@ export const TavlaBoard: React.FC<TavlaBoardProps> = ({
 
       // Boosted Coin Rewards in Blitz Mode (600 for win, 1000 for Mars, 120 for loss)
       const baseCoin = won ? (end.isMars ? 500 : 250) : 50;
-      const coinReward = isBlitz ? (won ? (end.isMars ? 1000 : 600) : 120) : baseCoin;
+      const coinReward = coinOverride
+        ? won
+          ? end.isMars
+            ? coinOverride.marsWin
+            : coinOverride.win
+          : coinOverride.loss
+        : isBlitz
+          ? won
+            ? end.isMars
+              ? 1000
+              : 600
+            : 120
+          : baseCoin;
 
       cloudflareStorage.recordMatchResult(
         won,
@@ -482,7 +499,11 @@ export const TavlaBoard: React.FC<TavlaBoardProps> = ({
   // Handle Point or Bar Click for Moving
   const handleSourceSelect = (from: number | 'bar') => {
     if (!isHumanTurn) return;
-    if (dice === null || remainingMoves.length === 0) return;
+    // Zar yokken pula dokunulursa sessizce geçme — kullanıcıya nedenini söyle
+    if (dice === null || remainingMoves.length === 0) {
+      triggerToast('Önce zar atmalısın! 🎲');
+      return;
+    }
 
     // Check if player is on bar and MUST move from bar first
     const barCount = turn === 'white' ? board.bar.white : board.bar.black;
@@ -595,7 +616,7 @@ export const TavlaBoard: React.FC<TavlaBoardProps> = ({
       setAiStatusText('');
       return;
     }
-    if (turn === 'black' && (gameMode === 'ai' || gameMode === 'blitz') && !gameEnded) {
+    if (turn === 'black' && (gameMode === 'ai' || gameMode === 'blitz' || gameMode === 'tournament') && !gameEnded) {
       let timeoutId: NodeJS.Timeout;
 
       if (dice === null && !isRolling) {
@@ -824,6 +845,12 @@ export const TavlaBoard: React.FC<TavlaBoardProps> = ({
 
       {/* TOP BAR: Opponent HUD & Match Info & Back Button */}
       <div className="relative w-full flex items-center justify-between py-2 px-3 sm:px-5 rounded-3xl bg-white/[0.05] border border-white/[0.12] backdrop-blur-2xl shadow-[0_8px_30px_rgba(0,0,0,0.5)] mb-1.5 gap-2">
+        {/* Turnuva tur rozeti */}
+        {tournamentLabel && (
+          <span className="absolute -top-3 left-1/2 -translate-x-1/2 whitespace-nowrap px-3 py-0.5 rounded-full bg-gradient-to-r from-amber-500 to-amber-600 text-stone-950 font-serif-tavla text-[10px] font-black tracking-wider border border-amber-300 shadow-lg z-10">
+            🏆 {tournamentLabel}
+          </span>
+        )}
         {/* Real-time Opponent Speech Bubble */}
         <ChatBubbleOverlay message={chatVisibilityMode !== 'hidden' ? activeOpponentBubble : null} position="top" />
 

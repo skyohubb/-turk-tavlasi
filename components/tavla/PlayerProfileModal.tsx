@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { UserProfile, cloudflareStorage } from '@/lib/cloudflare/storage';
 import { PlayerAvatar } from './PlayerAvatar';
 import { SafeImage } from './SafeImage';
-import { LeaderboardPlayer } from '@/app/api/leaderboard/route';
+import { LeaderboardPlayer } from '@/lib/tavla/leaderboardData';
 import { Opponent } from '@/lib/tavla/types';
 import { AdMobBanner } from './AdMobBanner';
 
@@ -71,6 +71,8 @@ export const PlayerProfileModal: React.FC<PlayerProfileModalProps> = ({
   onOpenCustomization,
 }) => {
   const [activeTab, setActiveTab] = useState<'overview' | 'moves' | 'headToHead' | 'badges'>('overview');
+  // Silme onayı: çirkin window.confirm yerine iki dokunuş (önce kur, sonra onayla)
+  const [deleteArmed, setDeleteArmed] = useState<boolean>(false);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -572,21 +574,27 @@ export const PlayerProfileModal: React.FC<PlayerProfileModalProps> = ({
               {isOwnProfile && (
                 <button
                   onClick={() => {
-                    if (window.confirm('Tüm profil, istatistik ve akçeler silinsin mi?')) {
+                    if (deleteArmed) {
                       cloudflareStorage.resetProfile();
+                      setDeleteArmed(false);
                       onClose();
+                    } else {
+                      setDeleteArmed(true);
+                      setTimeout(() => setDeleteArmed(false), 4000);
                     }
                   }}
-                  className="px-4 py-2 rounded-full bg-rose-500/20 hover:bg-rose-500/35 text-rose-200 text-xs font-bold border border-rose-400/40 transition-all active:scale-95"
+                  className={`px-4 py-2 rounded-full text-xs font-bold border transition-all active:scale-95 ${
+                    deleteArmed
+                      ? 'bg-rose-500 text-white border-rose-300 animate-pulse'
+                      : 'bg-rose-500/20 hover:bg-rose-500/35 text-rose-200 border-rose-400/40'
+                  }`}
                   title="Cihazdaki tüm veriyi sil"
                 >
-                  🗑 Verilerimi Sil
+                  {deleteArmed ? '⚠️ Emin misin? Tekrar dokun' : '🗑 Verilerimi Sil'}
                 </button>
               )}
               <a
                 href="/privacy"
-                target="_blank"
-                rel="noreferrer"
                 className="px-4 py-2 rounded-full bg-white/[0.06] hover:bg-white/[0.14] text-amber-200 text-xs font-bold border border-white/10 transition-all"
               >
                 Gizlilik

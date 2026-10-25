@@ -91,7 +91,7 @@ export const InGameActionDock: React.FC<InGameActionDockProps> = ({
   };
 
   return (
-    <div className="relative w-full select-none my-1 shrink-0">
+    <div className="in-game-dock relative w-full select-none my-1 shrink-0">
       {/* FIXED HEIGHT CONTAINER: 52px on mobile, 54px on desktop - ZERO VERTICAL JUMPING */}
       <div className="relative w-full h-[52px] sm:h-[54px] rounded-2xl bg-gradient-to-r from-[#211108]/95 via-[#180c05]/95 to-[#120703]/95 border border-amber-400/35 shadow-[0_4px_20px_rgba(0,0,0,0.6)] backdrop-blur-xl px-2 sm:px-3 flex items-center justify-between gap-2 overflow-visible">
         
@@ -339,7 +339,7 @@ export const InGameActionDock: React.FC<InGameActionDockProps> = ({
             >
               <div className="text-[11px] font-serif-tavla font-black text-amber-300 border-b border-white/10 pb-1 flex items-center justify-between">
                 <span>Sohbet Görünümü &amp; Odak</span>
-                <button onClick={() => setShowModeMenu(false)} className="text-white/60 hover:text-white text-xs">✕</button>
+                <button onClick={() => setShowModeMenu(false)} className="min-w-[44px] min-h-[44px] px-2 py-2 text-white/60 hover:text-white text-xs">✕</button>
               </div>
 
               <button
@@ -422,7 +422,7 @@ export const InGameActionDock: React.FC<InGameActionDockProps> = ({
                 </span>
                 <button
                   onClick={() => setShowAltPopover(false)}
-                  className="w-5 h-5 rounded-full bg-white/10 hover:bg-white/20 text-white/80 flex items-center justify-center text-[10px]"
+                  className="w-11 h-11 rounded-full bg-white/10 hover:bg-white/20 text-white/80 flex items-center justify-center text-xs"
                 >
                   ✕
                 </button>

@@ -1,20 +1,13 @@
 import type {Metadata, Viewport} from 'next';
-import { Cinzel, Plus_Jakarta_Sans } from 'next/font/google';
+import '@fontsource/cinzel/600.css';
+import '@fontsource/cinzel/700.css';
+import '@fontsource/cinzel/800.css';
+import '@fontsource/cinzel/900.css';
+import '@fontsource/plus-jakarta-sans/400.css';
+import '@fontsource/plus-jakarta-sans/500.css';
+import '@fontsource/plus-jakarta-sans/600.css';
+import '@fontsource/plus-jakarta-sans/700.css';
 import './globals.css';
-
-const cinzel = Cinzel({
-  subsets: ['latin'],
-  variable: '--font-cinzel',
-  weight: ['600', '700', '800', '900'],
-  display: 'swap',
-});
-
-const plusJakarta = Plus_Jakarta_Sans({
-  subsets: ['latin'],
-  variable: '--font-jakarta',
-  weight: ['400', '500', '600', '700'],
-  display: 'swap',
-});
 
 export const metadata: Metadata = {
   title: 'Düşeş: Efsanevi Türk Tavlası',
@@ -48,7 +41,7 @@ export const viewport: Viewport = {
 
 export default function RootLayout({children}: {children: React.ReactNode}) {
   return (
-    <html lang="tr" className={`dark ${cinzel.variable} ${plusJakarta.variable}`}>
+    <html lang="tr" className="dark">
       <body suppressHydrationWarning className="bg-[#120b07] text-[#e8d7c2] antialiased selection:bg-[#d97706] selection:text-white min-h-screen">
         {children}
         <script

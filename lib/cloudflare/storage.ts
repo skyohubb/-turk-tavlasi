@@ -1,6 +1,8 @@
 'use client';
 
 import { GameStats } from '../tavla/types';
+import { getLeaderboardPlayers } from '../tavla/leaderboardData';
+import { AD_MAX_DAILY_REWARDS, AD_REWARDED_COOLDOWN_MS } from '../admob/admobService';
 
 export interface UserProfile {
   id: string;
@@ -66,7 +68,6 @@ export const DEFAULT_PROFILE: UserProfile = {
 const STORAGE_KEY = 'duses_tavla_profile_v1';
 const STORAGE_KEY_LEGACY = 'duşeş_tavla_profile_v1';
 const STORAGE_KEY_BACKUP = 'duses_tavla_profile_v1_backup';
-const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes cache for leaderboard
 
 function readSlot(key: string): UserProfile | null {
   try {
@@ -82,8 +83,6 @@ function readSlot(key: string): UserProfile | null {
 
 export class CloudflareStorage {
   private profile: UserProfile | null = null;
-  private pendingSync: boolean = false;
-  private leaderboardCache: { data: unknown; timestamp: number } | null = null;
 
   private listeners: Set<() => void> = new Set();
 
@@ -178,6 +177,9 @@ export class CloudflareStorage {
           // kota doluysa yedek atlanır, ana yazma yine denenir
         }
         localStorage.setItem(STORAGE_KEY, serialized);
+        // Native ayna: Capacitor Preferences (Google otomatik yedeğine girer,
+        // sil-yükle sonrası geri gelir). Taze varsayılan, gerçek kaydın üstüne yazmaz.
+        void this.mirrorToNative(serialized);
       } catch (e) {
         console.warn('LocalStorage write error', e);
       }
@@ -185,6 +187,67 @@ export class CloudflareStorage {
     this.notify();
     // Queue optimized background sync
     this.triggerOptimizedSync();
+  }
+
+  // Capacitor Preferences aynası — silip yeniden kurunca geri yükleme için
+  private async mirrorToNative(serialized: string): Promise<void> {
+    try {
+      const { Capacitor } = await import('@capacitor/core');
+      if (!Capacitor.isNativePlatform()) return;
+      const { Preferences } = await import('@capacitor/preferences');
+      try {
+        const incoming = JSON.parse(serialized);
+        const incomingFresh = (incoming?.stats?.matchesPlayed || 0) === 0;
+        if (incomingFresh) {
+          const { value } = await Preferences.get({ key: STORAGE_KEY });
+          if (value) {
+            try {
+              const existing = JSON.parse(value);
+              if ((existing?.stats?.matchesPlayed || 0) > 0) return; // gerçek kaydı koru
+            } catch {
+              // bozuk ayna — üzerine yaz
+            }
+          }
+        }
+      } catch {
+        // parse edilemezse aynalamaya devam et
+      }
+      await Preferences.set({ key: STORAGE_KEY, value: serialized });
+    } catch {
+      // sessiz geç (web veya plugin yok)
+    }
+  }
+
+  // Uygulama açılışında çağrılır: cihazda localStorage boş/taze ama
+  // Google yedeğinden dönen Preferences kaydı varsa geri yükler.
+  public async restoreFromNativeBackup(): Promise<boolean> {
+    try {
+      if (typeof window === 'undefined') return false;
+      const { Capacitor } = await import('@capacitor/core');
+      if (!Capacitor.isNativePlatform()) return false;
+      const { Preferences } = await import('@capacitor/preferences');
+      const { value } = await Preferences.get({ key: STORAGE_KEY });
+      if (!value) return false;
+      const backup = JSON.parse(value);
+      if (!backup || typeof backup !== 'object' || !backup.stats) return false;
+      const current = readSlot(STORAGE_KEY);
+      const currentFresh = !current || (current.stats?.matchesPlayed || 0) === 0;
+      const backupReal = (backup.stats?.matchesPlayed || 0) > 0;
+      if (currentFresh && backupReal) {
+        try {
+          localStorage.setItem(STORAGE_KEY, value);
+          localStorage.setItem(STORAGE_KEY_BACKUP, value);
+        } catch {
+          // yazılamazsa bile belleğe al
+        }
+        this.profile = { ...DEFAULT_PROFILE, ...backup } as UserProfile;
+        this.notify();
+        return true;
+      }
+    } catch {
+      // sessiz geç
+    }
+    return false;
   }
 
   public recordMatchResult(
@@ -250,7 +313,7 @@ export class CloudflareStorage {
     const now = Date.now();
     const today = new Date().toISOString().split('T')[0];
     const dailyWatched = p.lastAdDate === today ? (p.dailyAdsWatchedCount || 0) : 0;
-    const MAX_DAILY = 8;
+    const MAX_DAILY = AD_MAX_DAILY_REWARDS;
     const dailyRemaining = Math.max(0, MAX_DAILY - dailyWatched);
 
     if (dailyRemaining <= 0) {
@@ -267,7 +330,7 @@ export class CloudflareStorage {
       return { eligible: true, remainingSeconds: 0, reason: 'Can bitti! Taze çay ikramı hazır!', dailyRemaining };
     }
 
-    const COOLDOWN_MS = 3 * 60 * 1000; // 3 minutes cooldown
+    const COOLDOWN_MS = AD_REWARDED_COOLDOWN_MS; // tek kaynak (admobService)
     const elapsed = now - p.lastAdWatchedTimestamp;
 
     if (p.lastAdWatchedTimestamp === 0 || elapsed >= COOLDOWN_MS) {
@@ -372,70 +435,35 @@ export class CloudflareStorage {
       id: `tavla_user_${Math.random().toString(36).slice(2, 8)}`,
       stats: { ...DEFAULT_PROFILE.stats, diceRollFrequencies: {} },
     };
-    this.leaderboardCache = null;
     this.saveProfile(fresh);
     return fresh;
   }
 
-  // Cloudflare Free Tier request throttler
+  // Native AAB: sunucu yok, kayıt tamamen cihazda tutulur. Sync no-op.
   private triggerOptimizedSync() {
-    if (this.pendingSync) return;
-    this.pendingSync = true;
-
-    // Debounce to batch multiple quick actions into 1 single fetch
-    setTimeout(async () => {
-      this.pendingSync = false;
-      try {
-        if (!this.profile) return;
-        await fetch('/api/sync', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            userId: this.profile.id,
-            name: this.profile.name,
-            rating: this.profile.rating,
-            stats: this.profile.stats,
-            coins: this.profile.coins,
-          }),
-        });
-      } catch (err) {
-        // Silently keep local state without breaking gameplay
-        console.debug('Cloudflare sync edge status: local fallback active', err);
-      }
-    }, 1500);
+    return;
   }
 
   public async fetchLeaderboard(): Promise<Array<{ rank: number; name: string; title: string; rating: number; wins: number; mars: number }>> {
     type Row = { rank: number; name: string; title: string; rating: number; wins: number; mars: number };
-    const fallback: Row[] = [
-      { rank: 1, name: 'Usta Selim', title: 'Kapalıçarşı Piri', rating: 1850, wins: 412, mars: 138 },
-      { rank: 2, name: 'Hacı Dayı', title: 'Çınaraltı Şampiyonu', rating: 1720, wins: 345, mars: 98 },
-      { rank: 3, name: 'Mahmut Emmi', title: 'Galata Tavla Reisi', rating: 1640, wins: 289, mars: 82 },
-      { rank: 4, name: 'Derviş Cemal', title: 'Kadıköy Üstadı', rating: 1510, wins: 195, mars: 45 },
-      { rank: 5, name: this.getProfile().name, title: this.getProfile().title, rating: this.getProfile().rating, wins: this.getProfile().stats.wins, mars: this.getProfile().stats.marsWins },
-    ];
-
-    // Check in-memory cache to save edge calls
-    if (this.leaderboardCache && Date.now() - this.leaderboardCache.timestamp < CACHE_TTL_MS) {
-      return this.leaderboardCache.data as Row[];
-    }
-
-    try {
-      const res = await fetch('/api/leaderboard');
-      if (res.ok) {
-        const data = await res.json();
-        // API sarmalayıcı obje döner {players: [...]} — diziyi çıkar, bozuksa yedeğe düş
-        const rows: Row[] = Array.isArray(data) ? data : data?.players;
-        if (Array.isArray(rows) && rows.length > 0) {
-          this.leaderboardCache = { data: rows, timestamp: Date.now() };
-          return rows;
-        }
-      }
-    } catch {
-      // Fallback local simulated leaderboard
-    }
-
-    return fallback;
+    const me = this.getProfile();
+    const rows: Row[] = getLeaderboardPlayers('all').players.map(p => ({
+      rank: p.rank,
+      name: p.name,
+      title: p.title,
+      rating: p.rating,
+      wins: p.wins,
+      mars: p.marsCount,
+    }));
+    rows.push({
+      rank: rows.length + 1,
+      name: me.name,
+      title: me.title,
+      rating: me.rating,
+      wins: me.stats.wins,
+      mars: me.stats.marsWins,
+    });
+    return rows;
   }
 }
 

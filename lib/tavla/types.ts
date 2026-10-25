@@ -55,7 +55,7 @@ export interface Opponent {
   rating: number;
 }
 
-export type GameMode = 'ai' | 'blitz' | 'local_2p' | 'online_match';
+export type GameMode = 'ai' | 'blitz' | 'local_2p' | 'online_match' | 'tournament';
 
 export type GamePhase = 
   | 'WAITING_ROLL' 

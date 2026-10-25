@@ -16,7 +16,7 @@ destekler. Ben senin Netlify hesabına girip deploy edemem, ama şunları yapman
    - Publish directory: `.next`
 3. Environment variables (Site settings → Environment variables) — AdMob gerçek ID'ler:
    - `NEXT_PUBLIC_ADMOB_APP_ID` = `ca-app-pub-6440512201259891~6791782749`
-   - `NEXT_PUBLIC_ADMOB_BANNER_ID` = `ca-app-pub-6440512201259891/3475354268`
+   - `NEXT_PUBLIC_ADMOB_BANNER_ID` = `ca-app-pub-6440512201259891/7032594932`
    - `NEXT_PUBLIC_ADMOB_INTERSTITIAL_ID` = `ca-app-pub-6440512201259891/4812486667`
    - `NEXT_PUBLIC_ADMOB_REWARDED_ID` = `ca-app-pub-6440512201259891/2186323326`
    - `NEXT_PUBLIC_ENABLE_ONLINE_LEAGUE` = `false`

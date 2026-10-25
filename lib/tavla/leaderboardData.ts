@@ -1,4 +1,9 @@
-import { NextRequest, NextResponse } from 'next/server';
+'use client';
+
+// Çevrimdışı Kahvehane Ligi verisi (v1.0).
+// Eskiden /api/leaderboard route'unda yaşıyordu; native AAB (statik export)
+// sunucu route'u barındıramadığı için buraya taşındı. Liste yereldir,
+// küresel sıralama iddiası yoktur.
 
 export interface LeaderboardPlayer {
   rank: number;
@@ -17,6 +22,8 @@ export interface LeaderboardPlayer {
   tierId: 'grandmaster' | 'master' | 'diamond' | 'platinum' | 'gold';
   recentStreak: number;
 }
+
+export type LeaderboardTab = 'all' | 'blitz' | 'mars';
 
 const GLOBAL_PLAYERS: LeaderboardPlayer[] = [
   {
@@ -191,47 +198,70 @@ const GLOBAL_PLAYERS: LeaderboardPlayer[] = [
   },
 ];
 
-export async function GET(req: NextRequest) {
-  const { searchParams } = new URL(req.url);
-  const tab = searchParams.get('tab') || 'all';
+export interface LeaderboardResult {
+  players: LeaderboardPlayer[];
+  edgeLocation: string;
+  cachedAt: string;
+  activeTab: LeaderboardTab;
+}
 
-  let sorted = [...GLOBAL_PLAYERS];
+// Deterministik mini-hash (sunucusuz sezon simülasyonu için)
+function hashStr(s: string): number {
+  let h = 2166136261;
+  for (let i = 0; i < s.length; i++) {
+    h ^= s.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return Math.abs(h);
+}
+
+// Yılın haftası (YYYYWW) — tablo her hafta tazelenir, ağ gerekmez
+function seasonWeek(): number {
+  const now = new Date();
+  const start = new Date(now.getFullYear(), 0, 1);
+  const week = Math.ceil(((now.getTime() - start.getTime()) / 86400000 + start.getDay() + 1) / 7);
+  return now.getFullYear() * 100 + week;
+}
+
+// Yaşayan lig: bot ustalar her hafta maç yapmış gibi reyting/galibiyetleri
+// hafifçe kıpırdar. Tamamen yereldir — sunucu ve kota tüketmez.
+function applySeasonDrift(players: LeaderboardPlayer[]): LeaderboardPlayer[] {
+  const week = seasonWeek();
+  return players.map(p => {
+    const h = hashStr(`${p.id}#${week}`);
+    const ratingDelta = Math.round(Math.sin(week * 0.7 + (h % 628) / 100) * 18);
+    const winsDelta = h % 4;
+    const marsDelta = Math.floor(h / 7) % 2;
+    const wins = p.wins + winsDelta;
+    const losses = p.losses + (h % 3 === 0 ? 1 : 0);
+    const total = Math.max(1, wins + losses);
+    return {
+      ...p,
+      rating: p.rating + ratingDelta,
+      wins,
+      losses,
+      marsCount: p.marsCount + marsDelta,
+      winRate: `${Math.round((wins / total) * 100)}%`,
+    };
+  });
+}
+
+export function getLeaderboardPlayers(tab: LeaderboardTab = 'all'): LeaderboardResult {
+  const drifted = applySeasonDrift(GLOBAL_PLAYERS);
+  const sorted = [...drifted];
 
   if (tab === 'blitz') {
-    // Sort with Blitz ratings & fast play style
     sorted.sort((a, b) => b.wins * 2 + b.rating - (a.wins * 2 + a.rating));
   } else if (tab === 'mars') {
-    // Sort by Mars count
     sorted.sort((a, b) => b.marsCount - a.marsCount);
   } else {
-    // Standard Elo rating
     sorted.sort((a, b) => b.rating - a.rating);
   }
 
-  // Update sequential ranks after sort
-  const formatted = sorted.map((p, idx) => ({
-    ...p,
-    rank: idx + 1,
-  }));
-
-  return NextResponse.json(
-    {
-      success: true,
-      provider: 'Local offline league (v1.0)',
-      mode: 'offline',
-      note: 'Gerçek çevrimiçi sunucu bağlanana kadar liste yereldir; küresel sıralama iddiası yoktur.',
-      edgeLocation: 'Yerel Cihaz',
-      cachedAt: new Date().toISOString(),
-      activeTab: tab,
-      players: formatted,
-    },
-    {
-      headers: {
-        'Server': 'Duses-Tavla-Local/1.0',
-        'X-League-Mode': 'offline',
-        'X-Edge-Region': 'on-device',
-        'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=120',
-      },
-    }
-  );
+  return {
+    players: sorted.map((p, idx) => ({ ...p, rank: idx + 1 })),
+    edgeLocation: 'Yerel Cihaz',
+    cachedAt: new Date().toISOString(),
+    activeTab: tab,
+  };
 }

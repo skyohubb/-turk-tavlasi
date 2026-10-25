@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Düşeş Tavla otomatik yedek kuralları: profil + oyun kaydı Google yedeğine
+     girer (sil-yükle sonrası geri gelir), önbellek ve geçici dosyalar girmez. -->
+<full-backup-content>
+    <include domain="sharedpref" path="." />
+    <include domain="file" path="app_webview/" />
+    <include domain="database" path="." />
+    <!-- Not: cache/ ve external zaten include edilmediği için yedeğe girmez;
+         lint kuralı gereği include edilmeyen yola exclude yazılmaz. -->
+</full-backup-content>

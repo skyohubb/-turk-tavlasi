@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { UserProfile } from '@/lib/cloudflare/storage';
 import { PlayerAvatar } from './PlayerAvatar';
-import { LeaderboardPlayer } from '@/app/api/leaderboard/route';
+import { LeaderboardPlayer, getLeaderboardPlayers } from '@/lib/tavla/leaderboardData';
 import { SafeImage } from './SafeImage';
 import { AdMobBanner } from './AdMobBanner';
 
@@ -13,6 +13,8 @@ interface LeaderboardModalProps {
   onClose: () => void;
   userProfile: UserProfile;
   onInspectPlayer?: (player: LeaderboardPlayer) => void;
+  // Turnuva kartına dokununca gerçek katılım
+  onJoinTournament?: () => void;
 }
 
 export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
@@ -20,6 +22,7 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
   onClose,
   userProfile,
   onInspectPlayer,
+  onJoinTournament,
 }) => {
   const [activeTab, setActiveTab] = useState<'all' | 'blitz' | 'mars'>('all');
   const [players, setPlayers] = useState<LeaderboardPlayer[]>([]);
@@ -29,57 +32,25 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
   const isOnlineLeague = process.env.NEXT_PUBLIC_ENABLE_ONLINE_LEAGUE === 'true';
 
   useEffect(() => {
-    let ignore = false;
     if (isOpen) {
-      const loadData = async () => {
-        setIsLoading(true);
-        try {
-          const res = await fetch(`/api/leaderboard?tab=${activeTab}`);
-          if (res.ok && !ignore) {
-            const data = await res.json();
-            setPlayers(data.players || []);
-            if (data.edgeLocation) setEdgeLocation(data.edgeLocation);
-            if (data.cachedAt) {
-              const d = new Date(data.cachedAt);
-              setCachedTime(d.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' }));
-            }
-          }
-        } catch (err) {
-          console.warn('Error fetching leaderboard from Cloudflare Worker:', err);
-        } finally {
-          if (!ignore) {
-            setIsLoading(false);
-          }
-        }
-      };
-
-      loadData();
+      // Yerel lig: sunucu yok, liste cihazda hesaplanır (anında).
+      const data = getLeaderboardPlayers(activeTab);
+      setPlayers(data.players);
+      setEdgeLocation(data.edgeLocation);
+      const d = new Date(data.cachedAt);
+      setCachedTime(d.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' }));
+      setIsLoading(false);
     }
-    return () => {
-      ignore = true;
-    };
   }, [isOpen, activeTab]);
 
   // v1.0: çevrimdışı lig. Liste yereldir, küresel sıralama iddiası yoktur.
 
   const handleRefresh = async () => {
-    setIsLoading(true);
-    try {
-      const res = await fetch(`/api/leaderboard?tab=${activeTab}`);
-      if (res.ok) {
-        const data = await res.json();
-        setPlayers(data.players || []);
-        if (data.edgeLocation) setEdgeLocation(data.edgeLocation);
-        if (data.cachedAt) {
-          const d = new Date(data.cachedAt);
-          setCachedTime(d.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' }));
-        }
-      }
-    } catch (err) {
-      console.warn('Error refreshing leaderboard:', err);
-    } finally {
-      setIsLoading(false);
-    }
+    const data = getLeaderboardPlayers(activeTab);
+    setPlayers(data.players);
+    setEdgeLocation(data.edgeLocation);
+    const d = new Date(data.cachedAt);
+    setCachedTime(d.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' }));
   };
 
   useEffect(() => {
@@ -194,12 +165,12 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
             </div>
           </div>
 
-          {/* TAB BAR FILTER */}
-          <div className="relative z-10 px-5 sm:px-8 py-3 bg-white/[0.02] border-b border-white/[0.06] flex items-center justify-between gap-3 flex-wrap">
-            <div className="flex items-center gap-2">
+          {/* TAB BAR FILTER — dar ekranda yatay kayar, sekme asla kaybolmaz */}
+          <div className="relative z-10 px-4 sm:px-8 py-3 bg-white/[0.02] border-b border-white/[0.06] flex items-center gap-3 overflow-x-auto">
+            <div className="flex items-center gap-2 min-w-max">
               <button
                 onClick={() => setActiveTab('all')}
-                className={`px-4 py-1.5 rounded-full text-xs font-serif-tavla font-bold transition-all flex items-center gap-1.5 border ${
+                className={`shrink-0 px-4 py-1.5 rounded-full text-xs font-serif-tavla font-bold transition-all flex items-center gap-1.5 border ${
                   activeTab === 'all'
                     ? 'bg-amber-500 text-stone-950 border-amber-400 shadow-[0_4px_16px_rgba(245,158,11,0.4)]'
                     : 'bg-white/[0.05] text-amber-100/70 border-white/10 hover:text-white'
@@ -211,7 +182,7 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
 
               <button
                 onClick={() => setActiveTab('blitz')}
-                className={`px-4 py-1.5 rounded-full text-xs font-serif-tavla font-bold transition-all flex items-center gap-1.5 border ${
+                className={`shrink-0 px-4 py-1.5 rounded-full text-xs font-serif-tavla font-bold transition-all flex items-center gap-1.5 border ${
                   activeTab === 'blitz'
                     ? 'bg-gradient-to-r from-amber-500 to-rose-500 text-white border-rose-400 shadow-[0_4px_16px_rgba(244,63,94,0.4)]'
                     : 'bg-white/[0.05] text-amber-100/70 border-white/10 hover:text-white'
@@ -223,7 +194,7 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
 
               <button
                 onClick={() => setActiveTab('mars')}
-                className={`px-4 py-1.5 rounded-full text-xs font-serif-tavla font-bold transition-all flex items-center gap-1.5 border ${
+                className={`shrink-0 px-4 py-1.5 rounded-full text-xs font-serif-tavla font-bold transition-all flex items-center gap-1.5 border ${
                   activeTab === 'mars'
                     ? 'bg-gradient-to-r from-amber-500 to-orange-600 text-stone-950 border-amber-300 shadow-[0_4px_16px_rgba(245,158,11,0.4)]'
                     : 'bg-white/[0.05] text-amber-100/70 border-white/10 hover:text-white'
@@ -351,7 +322,16 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
 
             {/* Google AdMob Banner between Podium & Table */}
             <div className="my-1">
-              <AdMobBanner format="banner" initialCreativeIndex={2} className="shadow-lg border-amber-500/30" />
+              <AdMobBanner
+                format="banner"
+                initialCreativeIndex={2}
+                className="shadow-lg border-amber-500/30"
+                onAdClick={creative => {
+                  if (creative.id === 'ad_tournament' && onJoinTournament) {
+                    onJoinTournament();
+                  }
+                }}
+              />
             </div>
 
             {/* FULL RANKINGS TABLE */}

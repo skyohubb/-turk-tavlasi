@@ -18,7 +18,10 @@ const TABS: Array<{ id: LobbyRoom; Icon: React.ComponentType<{ className?: strin
 ];
 
 export const LobbyBottomNav: React.FC<LobbyBottomNavProps> = ({ room, onChange }) => (
-  <nav className="fixed bottom-0 inset-x-0 z-40 px-3 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2 bg-[#140904]/95 backdrop-blur-xl border-t border-amber-500/20 shadow-[0_-10px_30px_rgba(0,0,0,0.6)]">
+  <nav
+    className="fixed inset-x-0 z-40 px-3 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-3 bg-gradient-to-t from-black/70 via-black/30 to-transparent backdrop-blur-[2px] border-t border-white/[0.07]"
+    style={{ bottom: 'var(--admob-banner-h, 0px)' }}
+  >
     <div className="max-w-lg mx-auto grid grid-cols-5 gap-1.5">
       {TABS.map(({ id, Icon, label, activeGlow }) => {
         const active = room === id;
@@ -28,7 +31,7 @@ export const LobbyBottomNav: React.FC<LobbyBottomNavProps> = ({ room, onChange }
             onClick={() => onChange(id)}
             className={`relative flex flex-col items-center gap-1 py-2 rounded-2xl transition-all duration-200 active:scale-95 ${
               active
-                ? `bg-gradient-to-b from-amber-500/30 to-amber-600/10 text-amber-200 border border-amber-400/60 ${activeGlow}`
+                ? `bg-gradient-to-b from-amber-500/25 to-amber-600/5 text-amber-200 border border-amber-400/50 ${activeGlow}`
                 : 'text-amber-200/40 border border-transparent hover:text-amber-200/80 hover:bg-white/[0.04]'
             }`}
           >

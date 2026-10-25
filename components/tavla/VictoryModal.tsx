@@ -16,6 +16,18 @@ interface VictoryModalProps {
   onRematch: () => void;
   onLobby: () => void;
   onOpenRewardedAd?: (type?: 'coins' | 'energy') => void;
+  // Gerçek ödül sinyali: page.tsx her ödül verişinde artırır. "Alındı" rozeti
+  // SADECE bu değişince gösterilir (izlemeden kapatmada sahte onay yok).
+  rewardNonce?: number;
+  // Turnuva: tur bilgisi + sonraki tur geçişi
+  tournament?: {
+    roundLabel: string;
+    nextRoundLabel?: string;
+    isLastRound: boolean;
+    prize: number;
+    marsPrize: number;
+    onNextRound: () => void;
+  };
 }
 
 const VictoryModalContent: React.FC<Omit<VictoryModalProps, 'isOpen'>> = ({
@@ -26,8 +38,11 @@ const VictoryModalContent: React.FC<Omit<VictoryModalProps, 'isOpen'>> = ({
   onRematch,
   onLobby,
   onOpenRewardedAd,
+  rewardNonce = 0,
+  tournament,
 }) => {
   const [bonusClaimed, setBonusClaimed] = useState<boolean>(false);
+  const [bonusPending, setBonusPending] = useState<boolean>(false);
 
   // Escape key handler
   useEffect(() => {
@@ -38,25 +53,42 @@ const VictoryModalContent: React.FC<Omit<VictoryModalProps, 'isOpen'>> = ({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [onLobby]);
 
-  const coinsWon = isBlitz
+  const coinsWon = tournament
     ? won
       ? isMars
-        ? 1000
-        : 600
-      : 120
-    : won
-    ? isMars
-      ? 500
-      : 250
-    : 50;
+        ? tournament.marsPrize
+        : tournament.prize
+      : 100
+    : isBlitz
+      ? won
+        ? isMars
+          ? 1000
+          : 600
+        : 120
+      : won
+        ? isMars
+          ? 500
+          : 250
+        : 50;
 
   const handleWatchBonusAd = () => {
     if (onOpenRewardedAd) {
-      setBonusClaimed(true);
+      // Rozeti ŞİMDİ yakma: önce video izlenecek. Ödül gelirse effect yakalar.
+      setBonusPending(true);
       soundEffects.playAuthenticTeaClink();
       onOpenRewardedAd('coins');
     }
   };
+
+  // Gerçek ödül geldi + biz bekliyorduk → şimdi "Alındı"yı göster
+  const firstNonce = React.useRef(rewardNonce);
+  useEffect(() => {
+    if (bonusPending && rewardNonce !== firstNonce.current) {
+      firstNonce.current = rewardNonce;
+      setBonusPending(false);
+      setBonusClaimed(true);
+    }
+  }, [rewardNonce, bonusPending]);
 
   return (
     <AnimatePresence>
@@ -89,6 +121,12 @@ const VictoryModalContent: React.FC<Omit<VictoryModalProps, 'isOpen'>> = ({
           </div>
 
           {/* Title */}
+          {tournament && (
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/25 border border-amber-400/50 text-amber-200 text-xs font-bold mb-2 mx-auto">
+              <span>🏆</span>
+              <span>DÜŞEŞ ŞAMPİYONLAR TURNUVASI · {tournament.roundLabel.toLocaleUpperCase('tr-TR')}</span>
+            </div>
+          )}
           {isBlitz && (
             <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-rose-500/25 border border-rose-400/50 text-rose-300 text-xs font-bold mb-2 animate-pulse mx-auto">
               <span>⚡</span>
@@ -163,14 +201,31 @@ const VictoryModalContent: React.FC<Omit<VictoryModalProps, 'isOpen'>> = ({
 
           {/* Actions with Water-Drop Buttons */}
           <div className="flex flex-col gap-2.5">
-            <button
-              onClick={onRematch}
-              className="relative group w-full py-3 rounded-full bg-gradient-to-r from-amber-500 via-amber-400 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-stone-950 font-serif-tavla font-black text-xs sm:text-sm tracking-wider shadow-[0_8px_25px_rgba(245,158,11,0.4)] transition-all active:scale-95 flex items-center justify-center gap-2 border border-amber-300"
-            >
-              <span className="absolute inset-x-4 top-1 h-[30%] rounded-full bg-gradient-to-b from-white/60 to-transparent pointer-events-none" />
-              <span>🔄</span>
-              <span>RÖVANŞ YAP (YENİDEN OYNA)</span>
-            </button>
+            {tournament && won && !tournament.isLastRound ? (
+              <button
+                onClick={tournament.onNextRound}
+                className="relative group w-full py-3 rounded-full bg-gradient-to-r from-amber-500 via-amber-400 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-stone-950 font-serif-tavla font-black text-xs sm:text-sm tracking-wider shadow-[0_8px_25px_rgba(245,158,11,0.4)] transition-all active:scale-95 flex items-center justify-center gap-2 border border-amber-300"
+              >
+                <span className="absolute inset-x-4 top-1 h-[30%] rounded-full bg-gradient-to-b from-white/60 to-transparent pointer-events-none" />
+                <span>🏆</span>
+                <span>SONRAKİ TUR{tournament.nextRoundLabel ? `: ${tournament.nextRoundLabel}` : ''}</span>
+              </button>
+            ) : (
+              <button
+                onClick={tournament && won && tournament.isLastRound ? onLobby : onRematch}
+                className="relative group w-full py-3 rounded-full bg-gradient-to-r from-amber-500 via-amber-400 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-stone-950 font-serif-tavla font-black text-xs sm:text-sm tracking-wider shadow-[0_8px_25px_rgba(245,158,11,0.4)] transition-all active:scale-95 flex items-center justify-center gap-2 border border-amber-300"
+              >
+                <span className="absolute inset-x-4 top-1 h-[30%] rounded-full bg-gradient-to-b from-white/60 to-transparent pointer-events-none" />
+                <span>{tournament && won && tournament.isLastRound ? '🏆' : '🔄'}</span>
+                <span>
+                  {tournament && won && tournament.isLastRound
+                    ? 'ŞAMPİYON OLDUN — KUPAYLA DÖN'
+                    : tournament && !won
+                      ? 'BU TURU TEKRAR OYNA'
+                      : 'RÖVANŞ YAP (YENİDEN OYNA)'}
+                </span>
+              </button>
+            )}
 
             <button
               onClick={onLobby}

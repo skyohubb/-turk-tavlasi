@@ -7,7 +7,7 @@ android {
         applicationId "com.duses.tavla"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 1
+        versionCode 11
         versionName "1.0.0"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
@@ -16,10 +16,24 @@ android {
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+    // İmza: şifreler dosyaya GÖMÜLMEZ, ortamdan gelir (DUSES_* env).
+    // AAB basarken komut satırında verilir, repoya sır düşmez.
+    signingConfigs {
+        release {
+            def storeFilePath = System.getenv('DUSES_KEYSTORE_FILE') ?: '../../playstore/keys/duses-release.keystore'
+            storeFile file(storeFilePath)
+            storePassword System.getenv('DUSES_STORE_PASSWORD')
+            keyAlias 'duses'
+            keyPassword (System.getenv('DUSES_KEY_PASSWORD') ?: System.getenv('DUSES_STORE_PASSWORD'))
+        }
+    }
     buildTypes {
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            if (System.getenv('DUSES_STORE_PASSWORD') != null) {
+                signingConfig signingConfigs.release
+            }
         }
     }
 }

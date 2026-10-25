@@ -5,9 +5,16 @@
    Kodun her yerinde kullanılan `xs:` sınıfları buna bağlıdır. */
 @theme {
   --breakpoint-xs: 30rem;
+  --font-cinzel: 'Cinzel', serif, Georgia;
+  --font-jakarta: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
 }
 
 @layer base {
+  :root {
+    /* Native AdMob banner yüksekliği (admobService doldurur); layout bu kadar yer ayırır */
+    --admob-banner-h: 0px;
+  }
+
   * {
     box-sizing: border-box;
     -webkit-tap-highlight-color: transparent;
@@ -62,6 +69,13 @@
 }
 ::-webkit-scrollbar-thumb:hover {
   background: #78350f;
+}
+
+/* Oyun içi dock: tüm dokunmatik hedefler en az 44px (eksik tıklama düzeltmesi).
+   Kapsayıcı 52px olduğu için dikeyde taşma yapmaz. */
+.in-game-dock button {
+  min-height: 44px;
+  min-width: 44px;
 }
 
 /* Hafif Mod (perf-lite): düşük donanımda GPU'yu rahatlatır.

@@ -64,7 +64,7 @@ export const TopBar: React.FC<TopBarProps> = ({
 
   return (
     <>
-      <header className="w-full sticky top-0 z-40 px-2 sm:px-4 lg:px-6 py-2 bg-[#140904]/95 backdrop-blur-xl border-b border-white/[0.08] shadow-[0_8px_30px_rgba(0,0,0,0.6)] overflow-x-clip">
+      <header className="w-full sticky top-0 z-40 px-2 sm:px-4 lg:px-6 py-2 bg-gradient-to-b from-black/65 via-black/25 to-transparent backdrop-blur-[2px] border-b border-white/[0.06] overflow-x-clip">
         <div className="max-w-7xl mx-auto flex items-center justify-between gap-1 sm:gap-3 min-w-0">
           {/* Zone 1: Modern Brand Wordmark */}
           <button
@@ -237,7 +237,7 @@ export const TopBar: React.FC<TopBarProps> = ({
             {/* Golden Akçe Button */}
             <button
               onClick={() => onOpenRewardedAd('coins')}
-              className="relative px-2 py-1 sm:px-3 sm:py-1.5 rounded-full bg-amber-500/20 hover:bg-amber-500/30 border border-amber-400/40 hover:border-amber-300/70 transition-all active:scale-95 flex items-center gap-1 text-xs font-bold text-amber-200 whitespace-nowrap shrink-0 min-w-0 max-w-[92px] sm:max-w-none"
+              className="relative px-2 py-1 sm:px-3 sm:py-1.5 rounded-full bg-amber-500/20 hover:bg-amber-500/30 border border-amber-400/40 hover:border-amber-300/70 transition-all active:scale-95 flex items-center gap-1 text-xs font-bold text-amber-200 whitespace-nowrap shrink-0 min-w-0 max-w-[72px] sm:max-w-none"
               title={`Kasa Bakiyesi: ${userCoins} akçe - Tıklayarak akçe kazanın`}
             >
               <span className="text-sm shrink-0">🪙</span>
@@ -268,7 +268,7 @@ export const TopBar: React.FC<TopBarProps> = ({
             {/* Mobile / Compact Menu Trigger Button (Visible on screens < xl) */}
             <button
               onClick={() => setIsMobileMenuOpen(prev => !prev)}
-              className="xl:hidden p-1.5 sm:p-2 rounded-xl bg-white/[0.06] hover:bg-white/[0.15] border border-white/15 text-amber-300 hover:text-white transition-all flex items-center justify-center shrink-0"
+              className="xl:hidden p-1.5 sm:p-2 min-w-[44px] min-h-[44px] rounded-xl bg-white/[0.06] hover:bg-white/[0.15] border border-white/15 text-amber-300 hover:text-white transition-all flex items-center justify-center shrink-0"
               title="Menüyü Aç"
               aria-label="Menü"
             >
@@ -300,7 +300,7 @@ export const TopBar: React.FC<TopBarProps> = ({
               </div>
               <button
                 onClick={() => setIsMobileMenuOpen(false)}
-                className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center text-sm font-bold"
+                className="w-11 h-11 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center text-sm font-bold"
               >
                 ✕
               </button>

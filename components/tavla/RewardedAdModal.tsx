@@ -1,8 +1,8 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { AdRewardType, AVAILABLE_REWARDS, admobService } from '@/lib/admob/admobService';
+import { AdRewardType, AVAILABLE_REWARDS, admobService, AD_MAX_DAILY_REWARDS } from '@/lib/admob/admobService';
 import { soundEffects } from '@/lib/audio/soundEffects';
 import { formatCountdown } from '@/lib/format';
 import { SafeImage } from './SafeImage';
@@ -38,16 +38,26 @@ const RewardedAdModalContent: React.FC<Omit<RewardedAdModalProps, 'isOpen'>> = (
   const [abortMsg, setAbortMsg] = useState<string>('');
   const [activeCreative, setActiveCreative] = useState(() => admobService.getRandomCreative());
   const [localCooldownSec, setLocalCooldownSec] = useState<number>(cooldownStatus?.remainingSeconds ?? 0);
+  // Çift ödül koruması: aynı video için grantReward iki kez çalışamaz
+  const grantedRef = useRef<boolean>(false);
   const isNative = admobService.isNativeAdMobAvailable();
 
-  // Live countdown timer for cooldown if active
+  // Parent (maç bitimi / can bitimi / ödül alımı) cooldown'u güncellerse modala yansıt.
+  // (Eskiden sadece ilk açılış değeri kullanılırdı → "bir daha izle" hayaleti.)
   useEffect(() => {
-    if (isWatchingAd || localCooldownSec <= 0) return;
+    if (!isWatchingAd) {
+      setLocalCooldownSec(cooldownStatus?.remainingSeconds ?? 0);
+    }
+  }, [cooldownStatus?.remainingSeconds, isWatchingAd]);
+
+  // Live countdown timer for cooldown if active (bir kez kurulur, her saniye yeniden kurulmaz)
+  useEffect(() => {
+    if (isWatchingAd) return;
     const interval = setInterval(() => {
       setLocalCooldownSec(prev => (prev > 1 ? prev - 1 : 0));
     }, 1000);
     return () => clearInterval(interval);
-  }, [isWatchingAd, localCooldownSec]);
+  }, [isWatchingAd]);
 
   // Escape key handler
   useEffect(() => {
@@ -58,32 +68,30 @@ const RewardedAdModalContent: React.FC<Omit<RewardedAdModalProps, 'isOpen'>> = (
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isWatchingAd, onClose]);
 
-  // Video Countdown effect (sadece web simülasyonu için)
+  // Video Countdown effect (sadece web simülasyonu için) — sayaç + ödül ayrı adımlar
   useEffect(() => {
-    let timer: NodeJS.Timeout | null = null;
-    if (isWatchingAd) {
-      timer = setInterval(() => {
-        setVideoSecondsLeft(prev => {
-          if (prev <= 1) {
-            clearInterval(timer!);
-            setIsWatchingAd(false);
-            grantReward(selectedReward);
-            return 0;
-          }
-          return prev - 1;
-        });
-      }, 1000);
+    if (!isWatchingAd) return;
+    const timer = setInterval(() => {
+      setVideoSecondsLeft(prev => (prev > 1 ? prev - 1 : 0));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [isWatchingAd]);
+
+  // Video bitince ödülü ver (setState updater içinde YAN ETKİ YOK)
+  useEffect(() => {
+    if (isWatchingAd && videoSecondsLeft <= 0) {
+      setIsWatchingAd(false);
+      grantReward(selectedReward);
     }
-    return () => {
-      if (timer) clearInterval(timer);
-    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isWatchingAd, selectedReward]);
+  }, [isWatchingAd, videoSecondsLeft, selectedReward]);
 
   const isEligible = localCooldownSec <= 0 && (cooldownStatus?.eligible ?? true);
-  const dailyRemaining = cooldownStatus?.dailyRemaining ?? 6;
+  const dailyRemaining = cooldownStatus?.dailyRemaining ?? AD_MAX_DAILY_REWARDS;
 
   const grantReward = (reward: AdRewardType) => {
+    if (grantedRef.current) return; // aynı açılışta ikinci kez verme
+    grantedRef.current = true;
     // Mağaza indirimi modu: akçe YOK, indirim çeki var
     if (discountOffer && onDiscountClaimed) {
       setRewardClaimedSuccess(true);
@@ -105,17 +113,34 @@ const RewardedAdModalContent: React.FC<Omit<RewardedAdModalProps, 'isOpen'>> = (
     if (!isEligible || dailyRemaining <= 0 || isWatchingAd || isNativeLoading) return;
     setAbortMsg('');
     setRewardClaimedSuccess(false);
+    grantedRef.current = false;
 
-    // NATIVE (Android): GERÇEK reklam. Ödül SADECE tamamlanınca verilir (AdMob politikası).
+    // NATIVE (Android/AAB): GERÇEK reklam. Ödül SADECE tamamlanınca verilir (AdMob politikası).
     if (isNative) {
       setIsNativeLoading(true);
-      const completed = await admobService.showRewardedNative();
-      setIsNativeLoading(false);
-      if (completed) {
-        grantReward(selectedReward);
-      } else {
-        setAbortMsg('Video yarım kaldı, ödül verilmedi. Ödül için videoyu sonuna kadar izleyin.');
+      try {
+        const result = await admobService.showRewardedNative();
+        if (result.completed) {
+          grantReward(selectedReward);
+        } else if (result.reason === 'load-failed') {
+          setAbortMsg('Reklam yüklenemedi (bağlantı yok ya da reklam hazır değil). Hiçbir pencere açılmadı — birazdan tekrar deneyin.');
+          soundEffects.playCheckerHit();
+        } else if (result.reason === 'timeout') {
+          setAbortMsg('Reklam yanıt vermedi. Ödül verilmedi — tekrar deneyebilirsiniz.');
+          soundEffects.playCheckerHit();
+        } else if (result.reason === 'show-failed') {
+          setAbortMsg('Reklam açılamadı. Ödül verilmedi — tekrar deneyin.');
+          soundEffects.playCheckerHit();
+        } else {
+          setAbortMsg('Video yarım kaldı, ödül verilmedi. Ödül için videoyu sonuna kadar izleyin.');
+          soundEffects.playCheckerHit();
+        }
+      } catch {
+        setAbortMsg('Reklam açılamadı (bağlantıyı kontrol edip tekrar deneyin). Ödül verilmedi.');
         soundEffects.playCheckerHit();
+      } finally {
+        // Servis her yolda döner; yine de takılıp kalmasın (beyaz ekran kilidi düzeltmesi)
+        setIsNativeLoading(false);
       }
       return;
     }

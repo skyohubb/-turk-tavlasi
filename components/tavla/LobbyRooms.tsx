@@ -70,11 +70,16 @@ export const MagazaRoom: React.FC<RoomProps> = ({ userProfile, onOpenBoardStore 
   return (
     <div className="w-full max-w-6xl mx-auto flex flex-col gap-3 px-4 py-3">
       <RoomToast msg={msg} />
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-2">
         <h2 className="font-serif-tavla font-black text-lg text-white">🪵 Tahta Mağazası</h2>
-        <span className="text-xs font-bold text-amber-300 bg-amber-500/20 px-2.5 py-1 rounded-full border border-amber-400/40 tabular-nums">
-          🪙 {formatCoins(userProfile.coins)}
-        </span>
+        <div className="flex items-center gap-1.5 shrink-0">
+          <span className="text-[10px] font-bold px-2 py-1 rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-400/30">
+            ✓ Anında Teslim
+          </span>
+          <span className="text-xs font-bold text-amber-300 bg-amber-500/20 px-2.5 py-1 rounded-full border border-amber-400/40 tabular-nums">
+            🪙 {formatCoins(userProfile.coins)}
+          </span>
+        </div>
       </div>
       <p className="text-[11px] text-amber-200/70 -mt-2">
         Normal fiyatla hemen al veya 📺 ile %50 indirim çeki kap. Detaylı önizleme için tam mağazayı aç.
@@ -101,31 +106,31 @@ export const MagazaRoom: React.FC<RoomProps> = ({ userProfile, onOpenBoardStore 
                   {isActive ? (
                     <span className="text-[10px] font-black text-emerald-300">✓ AKTİF</span>
                   ) : isUnl ? (
-                    <button
-                      onClick={() => buyNormal(skin.id)}
-                      className="px-3 py-1 rounded-lg bg-emerald-500 text-stone-950 text-[11px] font-black active:scale-95"
-                    >
-                      KUŞAN
-                    </button>
+                      <button
+                        onClick={() => buyNormal(skin.id)}
+                        className="px-3.5 py-2 min-h-[44px] rounded-lg bg-emerald-500 text-stone-950 text-[11px] font-black active:scale-95 flex items-center"
+                      >
+                        KUŞAN
+                      </button>
                   ) : (
                     <>
                       <button
                         onClick={() => buyNormal(skin.id)}
-                        className="px-3 py-1 rounded-lg bg-white/10 text-amber-100 text-[11px] font-black border border-white/20 active:scale-95 tabular-nums"
+                        className="px-3.5 py-2 min-h-[44px] rounded-lg bg-white/10 text-amber-100 text-[11px] font-black border border-white/20 active:scale-95 tabular-nums flex items-center"
                       >
                         🪙 {formatCoins(skin.requiredCoins)}
                       </button>
                       {hasDisc ? (
                         <button
                           onClick={() => buyNormal(skin.id)}
-                          className="px-3 py-1 rounded-lg bg-gradient-to-r from-rose-500 to-amber-500 text-white text-[11px] font-black active:scale-95 tabular-nums"
+                          className="px-3.5 py-2 min-h-[44px] rounded-lg bg-gradient-to-r from-rose-500 to-amber-500 text-white text-[11px] font-black active:scale-95 tabular-nums flex items-center"
                         >
                           🪙 {formatCoins(boardDiscountPrice(skin.requiredCoins))}
                         </button>
                       ) : (
                         <button
                           onClick={() => onOpenBoardStore?.()}
-                          className="px-3 py-1 rounded-lg bg-amber-500 text-stone-950 text-[11px] font-black active:scale-95 tabular-nums"
+                          className="px-3.5 py-2 min-h-[44px] rounded-lg bg-amber-500 text-stone-950 text-[11px] font-black active:scale-95 tabular-nums flex items-center"
                         >
                           📺 {formatCoins(boardDiscountPrice(skin.requiredCoins))}
                         </button>
@@ -160,9 +165,14 @@ const IKRAMS = [
 
 export const IkramRoom: React.FC<RoomProps> = ({ userProfile, rewardCooldown, onOpenRewardedAd }) => (
   <div className="w-full max-w-6xl mx-auto flex flex-col gap-3 px-4 py-3">
-    <div className="flex items-center justify-between">
+    <div className="flex items-center justify-between gap-2">
       <h2 className="font-serif-tavla font-black text-lg text-white">🎁 Günün İkramları</h2>
-      <span className="text-[11px] text-amber-200/70 font-mono">Kalan: {rewardCooldown.dailyRemaining ?? 8}</span>
+      <div className="flex items-center gap-1.5 shrink-0">
+        <span className="text-[10px] font-bold px-2 py-1 rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-400/30">
+          📺 Reklam = İkram
+        </span>
+        <span className="text-[11px] text-amber-200/70 font-mono">Kalan: {rewardCooldown.dailyRemaining ?? 8}</span>
+      </div>
     </div>
     {!rewardCooldown.eligible && (
       <div className="p-3 rounded-2xl bg-amber-500/10 border border-amber-400/35 text-center text-xs font-bold text-amber-300">
@@ -179,7 +189,7 @@ export const IkramRoom: React.FC<RoomProps> = ({ userProfile, rewardCooldown, on
           </div>
           <button
             onClick={() => onOpenRewardedAd(k.type)}
-            className="px-4 py-2 rounded-xl bg-amber-500 text-stone-950 text-xs font-black active:scale-95 shrink-0"
+            className="px-4 py-2 min-h-[44px] rounded-xl bg-amber-500 text-stone-950 text-xs font-black active:scale-95 shrink-0 flex items-center"
           >
             📺 İZLE
           </button>
@@ -206,10 +216,10 @@ export const LigRoom: React.FC<RoomProps> = ({ userProfile, onOpenLeaderboard })
   }, []);
   return (
     <div className="w-full max-w-6xl mx-auto flex flex-col gap-3 px-4 py-3">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-2">
         <h2 className="font-serif-tavla font-black text-lg text-white">🏆 Kahvehane Ligi</h2>
-        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-400/40">
-          ÇEVRİMDIŞI
+        <span className="text-[10px] font-bold px-2 py-1 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-400/40 shrink-0">
+          ÇEVRİMDIŞI · HER HAFTA TAZE
         </span>
       </div>
       <div className="rounded-2xl border border-white/10 bg-white/[0.03] divide-y divide-white/[0.06]">
@@ -233,7 +243,7 @@ export const LigRoom: React.FC<RoomProps> = ({ userProfile, onOpenLeaderboard })
       {onOpenLeaderboard && (
         <button
           onClick={onOpenLeaderboard}
-          className="w-full py-2.5 rounded-2xl bg-amber-500 text-stone-950 text-xs font-black active:scale-95"
+          className="w-full py-2.5 min-h-[44px] rounded-2xl bg-amber-500 text-stone-950 text-xs font-black active:scale-95 flex items-center justify-center"
         >
           🏆 TÜM LİG TABLOSU
         </button>
@@ -251,7 +261,9 @@ export const ProfilRoom: React.FC<RoomProps> = ({
   onOpenAudioSettings,
 }) => (
   <div className="w-full max-w-6xl mx-auto flex flex-col gap-3 px-4 py-3">
-    <h2 className="font-serif-tavla font-black text-lg text-white">👤 Profilim</h2>
+    <div className="flex items-center justify-between gap-2">
+      <h2 className="font-serif-tavla font-black text-lg text-white">👤 Profilim</h2>
+    </div>
     <div className="p-4 rounded-2xl border border-amber-500/30 bg-white/[0.04] flex items-center gap-4">
       <PlayerAvatar avatarUrl={userProfile.avatar} frameId={userProfile.frameId} size={56} />
       <div className="min-w-0">
@@ -279,7 +291,7 @@ export const ProfilRoom: React.FC<RoomProps> = ({
         </button>
       ))}
     </div>
-    <a href="/privacy" target="_blank" rel="noreferrer" className="text-center text-[11px] text-amber-200/50 underline">
+    <a href="/privacy" className="text-center text-[11px] text-amber-200/50 underline">
       Gizlilik Politikası
     </a>
   </div>

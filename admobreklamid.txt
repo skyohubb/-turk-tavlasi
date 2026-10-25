@@ -44,3 +44,8 @@ Gerçekleştirdiğiniz uygulamanın politikalara uygunluğunu denetlemek için A
 
 inquisitive-dieffenbachia-91c987.netlify.app
 
+--- 25.10.2026: YENİ banner birimi (eski "sabit" 3475354268 'Geçerli değil' idi) ---
+bannerca-app-pub-6440512201259891/7032594932
+Uygulama kimliği: ca-app-pub-6440512201259891~6791782749
+Bu birim .env.local / .env.example / NETLIFY_DEPLOY.md içinde BANNER olarak bağlı.
+

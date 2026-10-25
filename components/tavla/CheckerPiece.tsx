@@ -31,11 +31,15 @@ export const CheckerPiece: React.FC<CheckerPieceProps> = ({
   const styleObj = size ? { width: `${size}px`, height: `${size}px` } : undefined;
 
   return (
-    <div
+    <button
+      type="button"
+      aria-label={isWhite ? 'Beyaz pul' : 'Siyah pul'}
+      disabled={!isClickable}
       onClick={isClickable ? onClick : undefined}
       style={styleObj}
-      className={`relative rounded-full flex items-center justify-center transition-all duration-150 select-none shrink-0 ${
-        isClickable ? 'cursor-pointer hover:scale-105 active:scale-95' : ''
+      // Görsel boyut küçük kalır, dokunmatik alan görünmez ::after ile 44px'e büyütülür
+      className={`relative rounded-full flex items-center justify-center transition-all duration-150 select-none shrink-0 bg-transparent border-0 p-0 after:absolute after:-inset-3 after:content-[''] ${
+        isClickable ? 'cursor-pointer hover:scale-105 active:scale-95' : 'cursor-default'
       } ${
         isSelected
           ? 'ring-4 ring-[#fbbf24] shadow-[0_0_15px_rgba(251,191,36,0.9)] z-30 scale-105'
@@ -90,6 +94,6 @@ export const CheckerPiece: React.FC<CheckerPieceProps> = ({
           {displayBadge}
         </span>
       )}
-    </div>
+    </button>
   );
 };

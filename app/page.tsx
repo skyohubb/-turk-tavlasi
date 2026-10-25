@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useSyncExternalStore } from 'react';
+import React, { useState, useEffect, useSyncExternalStore, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { TopBar } from '@/components/tavla/TopBar';
 import { KahvehaneLobby, OPPONENTS } from '@/components/tavla/KahvehaneLobby';
@@ -20,8 +20,11 @@ import { cloudflareStorage } from '@/lib/cloudflare/storage';
 import { soundEffects } from '@/lib/audio/soundEffects';
 import { applyLiteMode, getLiteMode } from '@/lib/perfMode';
 import { Opponent, GameMode } from '@/lib/tavla/types';
+import { getTournamentRound, TOURNAMENT_TOTAL_ROUNDS } from '@/lib/tavla/tournament';
 import { AdRewardType, admobService } from '@/lib/admob/admobService';
-import { LeaderboardPlayer } from '@/app/api/leaderboard/route';
+import { NativeAdBanner } from '@/components/tavla/NativeAdBanner';
+import { LeaderboardPlayer } from '@/lib/tavla/leaderboardData';
+import { AppUpdateBanner } from '@/components/tavla/AppUpdateBanner';
 
 export default function Home() {
   // Idiomatic React external store synchronization ensuring zero SSR hydration mismatch
@@ -36,6 +39,10 @@ export default function Home() {
   const [lobbyRoom, setLobbyRoom] = useState<LobbyRoom>('oyna');
   const [activeOpponent, setActiveOpponent] = useState<Opponent>(OPPONENTS[0]);
   const [activeGameMode, setActiveGameMode] = useState<GameMode>('ai');
+  // Turnuva: null = turnuva dışı, 0..2 = aktif tur
+  const [tournamentRound, setTournamentRound] = useState<number | null>(null);
+  // Maç anahtarı: rövanş/tur geçişinde tahtayı sıfırdan kurar
+  const [matchKey, setMatchKey] = useState<number>(0);
 
   // Modals
   const [isStatsOpen, setIsStatsOpen] = useState<boolean>(false);
@@ -44,6 +51,8 @@ export default function Home() {
   const [inspectedPlayer, setInspectedPlayer] = useState<LeaderboardPlayer | Opponent | null>(null);
   const [isRewardedAdOpen, setIsRewardedAdOpen] = useState<boolean>(false);
   const [rewardModalType, setRewardModalType] = useState<AdRewardType>('coins');
+  // Her gerçek ödülde +1: VictoryModal sahte "Alındı" göstermesin diye sinyal
+  const [rewardNonce, setRewardNonce] = useState<number>(0);
   const [isInterstitialOpen, setIsInterstitialOpen] = useState<boolean>(false);
   const [isOutOfEnergyModalOpen, setIsOutOfEnergyModalOpen] = useState<boolean>(false);
   const [isAudioSettingsOpen, setIsAudioSettingsOpen] = useState<boolean>(false);
@@ -74,11 +83,31 @@ export default function Home() {
     dailyRemaining: 8,
   });
 
+  // Native AdMob banner görünürlüğü: sadece lobi açıkken, modal/oyun yokken.
+  // (Tam ekran geçiş/ödüllü reklam altında kalmasın diye o anlarda ayrıca gizlenir.)
+  const [bannerSuppressed, setBannerSuppressed] = useState<boolean>(false);
+  const anyModalOpen =
+    isStatsOpen ||
+    isLeaderboardOpen ||
+    isProfileModalOpen ||
+    isRewardedAdOpen ||
+    isInterstitialOpen ||
+    isOutOfEnergyModalOpen ||
+    isAudioSettingsOpen ||
+    isCustomizationOpen ||
+    isBoardStoreOpen ||
+    victoryState.isOpen;
+  const bannerVisible = viewState === 'lobby' && !anyModalOpen && !bannerSuppressed;
+
   // Start authentic Turkish coffeehouse ambience on first interaction & refresh cooldown timer periodically
   useEffect(() => {
     applyLiteMode(getLiteMode());
     admobService.initialize();
     admobService.prepareRewardVideo();
+    // AI Studio hata ayıklama: test mi gerçek mi? (sırları dökmez, sadece ayrım)
+    console.debug('[AdMob aktif birimler]', admobService.describeActiveUnits());
+    // Sil-yükle sonrası Google yedeğinden kaydı geri getir (varsa)
+    void cloudflareStorage.restoreFromNativeBackup();
 
     const handleFirstGesture = () => {
       soundEffects.startAmbientAmbience();
@@ -111,13 +140,14 @@ export default function Home() {
     };
   }, []);
 
-  const handleOpenRewardedAd = (type: AdRewardType = 'coins') => {
+  const handleOpenRewardedAd = useCallback((type: AdRewardType = 'coins') => {
     setRewardModalType(type);
     setIsRewardedAdOpen(true);
-  };
+  }, []);
 
-  const handleStartGame = (opponent: Opponent, mode: GameMode) => {
-    if (profile.energy <= 0) {
+  const handleStartGame = useCallback((opponent: Opponent, mode: GameMode) => {
+    const p = cloudflareStorage.getProfile();
+    if (p.energy <= 0) {
       soundEffects.playAuthenticTeaClink();
       setIsOutOfEnergyModalOpen(true);
       return;
@@ -125,9 +155,48 @@ export default function Home() {
 
     cloudflareStorage.consumeEnergy(1);
     soundEffects.playDiceCupShake();
+    setTournamentRound(null);
     setActiveOpponent(opponent);
     setActiveGameMode(mode);
+    setMatchKey(k => k + 1);
     setViewState('game');
+  }, []);
+
+  // Düşeş Şampiyonlar Turnuvası: 3 tur, tek canla giriş, ödül büyür
+  const handleStartTournament = useCallback(() => {
+    const p = cloudflareStorage.getProfile();
+    if (p.energy <= 0) {
+      soundEffects.playAuthenticTeaClink();
+      setIsOutOfEnergyModalOpen(true);
+      return;
+    }
+    cloudflareStorage.consumeEnergy(1);
+    soundEffects.playDiceCupShake();
+    const round = getTournamentRound(0);
+    const opp = OPPONENTS.find(o => o.id === round.opponentId) || OPPONENTS[0];
+    setTournamentRound(0);
+    setActiveOpponent(opp);
+    setActiveGameMode('tournament');
+    setMatchKey(k => k + 1);
+    setViewState('game');
+  }, []);
+
+  const handleNextTournamentRound = () => {
+    if (tournamentRound === null) return;
+    const next = tournamentRound + 1;
+    if (next >= TOURNAMENT_TOTAL_ROUNDS) {
+      setVictoryState(prev => ({ ...prev, isOpen: false }));
+      setTournamentRound(null);
+      setViewState('lobby');
+      return;
+    }
+    soundEffects.playDiceCupShake();
+    const round = getTournamentRound(next);
+    const opp = OPPONENTS.find(o => o.id === round.opponentId) || OPPONENTS[0];
+    setTournamentRound(next);
+    setActiveOpponent(opp);
+    setVictoryState(prev => ({ ...prev, isOpen: false }));
+    setMatchKey(k => k + 1);
   };
 
   const handleGameOver = (res: { won: boolean; isMars: boolean; score: number }) => {
@@ -143,6 +212,7 @@ export default function Home() {
   const handleRewardClaimed = (type: AdRewardType) => {
     cloudflareStorage.claimAdReward(type);
     setCooldown(cloudflareStorage.canWatchRewardedAd());
+    setRewardNonce(n => n + 1);
   };
 
   const handleRematch = () => {
@@ -168,18 +238,24 @@ export default function Home() {
 
     void showInterstitialIfDue();
 
+    setTournamentRound(null);
     setViewState('lobby');
   };
 
   // 2 maçta bir geçiş reklamı: native varsa GERÇEK reklam, yoksa uygulama-içi sponsor kartı.
-  // Her iki durumda da sayaç sıfırlanır (üst üste reklam yok — ban koruması).
+  // Sayaç SADECE gösterim denendikten sonra sıfırlanır (native hata verirse hak kaybolmaz).
   const showInterstitialIfDue = async () => {
     if (!admobService.shouldShowInterstitial()) return;
-    admobService.resetInterstitialCounter();
     if (admobService.isNativeAdMobAvailable()) {
-      await admobService.showInterstitialNative();
+      // Geçiş reklamı native ekranı kaplar; banner altta kalmasın diye önce gizle
+      setBannerSuppressed(true);
+      await admobService.hideBannerNative();
+      const shown = await admobService.showInterstitialNative();
+      if (shown) admobService.resetInterstitialCounter();
+      setBannerSuppressed(false);
       return;
     }
+    admobService.resetInterstitialCounter();
     setIsInterstitialOpen(true);
   };
 
@@ -197,7 +273,12 @@ export default function Home() {
   return (
     <div
       className="min-h-screen w-full max-w-full flex flex-col bg-gradient-to-b from-[#140803] via-[#1a0b05] to-[#0c0402] text-[#fef3c7] overflow-x-hidden"
+      style={{ paddingBottom: 'var(--admob-banner-h, 0px)' }}
     >
+      {/* Gerçek AdMob banner (native overlay) — web'de çizim yok, boşluk CSS değişkeniyle */}
+      <NativeAdBanner visible={bannerVisible} />
+      {/* Play In-App Update: güncelleme varsa sessizce indirir, bitince geçirir */}
+      <AppUpdateBanner canRestartNow={viewState === 'lobby'} />
       {/* Ultra-Modern Water-Drop Bubble Top Bar - Visible in Lobby */}
       {viewState === 'lobby' && (
         <TopBar
@@ -242,6 +323,7 @@ export default function Home() {
             room={lobbyRoom}
             onTabChange={setLobbyTab}
             onStartGame={handleStartGame}
+            onStartTournament={handleStartTournament}
             onOpenStats={() => setIsStatsOpen(true)}
             onOpenLeaderboard={() => setIsLeaderboardOpen(true)}
             onOpenProfile={() => {
@@ -260,8 +342,23 @@ export default function Home() {
           />
         ) : (
           <TavlaBoard
+            key={matchKey}
             opponent={activeOpponent}
             gameMode={activeGameMode}
+            coinOverride={
+              activeGameMode === 'tournament' && tournamentRound !== null
+                ? {
+                    win: getTournamentRound(tournamentRound).prize,
+                    marsWin: getTournamentRound(tournamentRound).marsPrize,
+                    loss: 100,
+                  }
+                : undefined
+            }
+            tournamentLabel={
+              activeGameMode === 'tournament' && tournamentRound !== null
+                ? `Turnuva · ${getTournamentRound(tournamentRound).label}`
+                : undefined
+            }
             userProfile={profile}
             onGameOver={handleGameOver}
             onBackToLobby={handleGoLobby}
@@ -373,6 +470,10 @@ export default function Home() {
         isOpen={isLeaderboardOpen}
         onClose={() => setIsLeaderboardOpen(false)}
         userProfile={profile}
+        onJoinTournament={() => {
+          setIsLeaderboardOpen(false);
+          handleStartTournament();
+        }}
         onInspectPlayer={(player) => {
           setInspectedPlayer(player);
           setIsProfileModalOpen(true);
@@ -410,9 +511,25 @@ export default function Home() {
         score={victoryState.score}
         opponent={activeOpponent}
         isBlitz={activeGameMode === 'blitz'}
+        tournament={
+          activeGameMode === 'tournament' && tournamentRound !== null
+            ? {
+                roundLabel: getTournamentRound(tournamentRound).label,
+                nextRoundLabel:
+                  tournamentRound + 1 < TOURNAMENT_TOTAL_ROUNDS
+                    ? getTournamentRound(tournamentRound + 1).label
+                    : undefined,
+                isLastRound: tournamentRound + 1 >= TOURNAMENT_TOTAL_ROUNDS,
+                prize: getTournamentRound(tournamentRound).prize,
+                marsPrize: getTournamentRound(tournamentRound).marsPrize,
+                onNextRound: handleNextTournamentRound,
+              }
+            : undefined
+        }
         onRematch={handleRematch}
         onLobby={handleGoLobby}
         onOpenRewardedAd={handleOpenRewardedAd}
+        rewardNonce={rewardNonce}
       />
     </div>
   );

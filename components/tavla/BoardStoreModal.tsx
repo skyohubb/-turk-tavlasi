@@ -37,11 +37,12 @@ export const BoardStoreModal: React.FC<BoardStoreModalProps> = ({
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
+      // İndirim videosu açıkken Escape SADECE onu kapatır (mağaza açık kalır)
+      if (e.key === 'Escape' && !isDiscountAdOpen) onClose();
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [onClose]);
+  }, [onClose, isDiscountAdOpen]);
 
   const selectedSkin =
     BOARD_SKINS.find(b => b.id === selectedSkinId) || BOARD_SKINS[0];

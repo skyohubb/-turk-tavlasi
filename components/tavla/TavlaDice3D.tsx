@@ -29,27 +29,27 @@ const FACE_ROTATIONS: Record<number, { rotateX: number; rotateY: number }> = {
 // Render pip dots on 3D die face with authentic Turkish bone/ebony & ruby styling
 function DieFace({ value }: { value: number }) {
   const pipClassRed =
-    'relative w-3.5 h-3.5 rounded-full bg-gradient-to-br from-red-600 via-red-700 to-red-950 shadow-[inset_0_1px_2px_rgba(0,0,0,0.6),0_1px_2px_rgba(255,255,255,0.4)] ring-1 ring-red-900/60 after:absolute after:top-0.5 after:left-0.5 after:w-1 after:h-1 after:bg-white/60 after:rounded-full';
-  
+    'relative w-4 h-4 rounded-full bg-gradient-to-br from-red-500 via-red-700 to-red-950 shadow-[inset_0_1px_2px_rgba(0,0,0,0.65),0_1px_3px_rgba(255,255,255,0.5)] ring-2 ring-red-950/70 after:absolute after:top-0.5 after:left-0.5 after:w-1.5 after:h-1.5 after:bg-white/70 after:rounded-full';
+
   const pipClassBlack =
-    'relative w-3 h-3 rounded-full bg-gradient-to-br from-stone-800 via-stone-900 to-black shadow-[inset_0_1px_2px_rgba(0,0,0,0.7),0_1px_2px_rgba(255,255,255,0.35)] ring-1 ring-black/70 after:absolute after:top-0.5 after:left-0.5 after:w-0.5 after:h-0.5 after:bg-white/50 after:rounded-full';
+    'relative w-4 h-4 rounded-full bg-gradient-to-br from-stone-700 via-stone-900 to-black shadow-[inset_0_1px_2px_rgba(0,0,0,0.8),0_1px_2px_rgba(255,255,255,0.4)] ring-2 ring-black/80 after:absolute after:top-1 after:left-1 after:w-1 after:h-1 after:bg-white/60 after:rounded-full';
 
   const pipClassBlackSmall =
-    'relative w-2.5 h-2.5 rounded-full bg-gradient-to-br from-stone-800 via-stone-900 to-black shadow-[inset_0_1px_2px_rgba(0,0,0,0.7),0_1px_1px_rgba(255,255,255,0.35)] ring-1 ring-black/70 after:absolute after:top-0.5 after:left-0.5 after:w-0.5 after:h-0.5 after:bg-white/50 after:rounded-full';
+    'relative w-3 h-3 rounded-full bg-gradient-to-br from-stone-700 via-stone-900 to-black shadow-[inset_0_1px_2px_rgba(0,0,0,0.8),0_1px_1px_rgba(255,255,255,0.4)] ring-1 ring-black/80 after:absolute after:top-0.5 after:left-0.5 after:w-1 after:h-1 after:bg-white/55 after:rounded-full';
 
   const renderPips = () => {
     switch (value) {
       case 1:
-        // Yek: Center ruby red
+        // Yek: Center ruby red — büyük ve tok
         return (
           <div className="w-full h-full flex items-center justify-center">
-            <span className="relative w-4.5 h-4.5 rounded-full bg-gradient-to-br from-red-500 via-red-700 to-red-950 shadow-[inset_0_2px_3px_rgba(0,0,0,0.6),0_1px_3px_rgba(255,255,255,0.5)] ring-2 ring-red-900/40 after:absolute after:top-1 after:left-1 after:w-1.5 after:h-1.5 after:bg-white/70 after:rounded-full" />
+            <span className="relative w-6 h-6 rounded-full bg-gradient-to-br from-red-500 via-red-700 to-red-950 shadow-[inset_0_2px_4px_rgba(0,0,0,0.65),0_1px_4px_rgba(255,255,255,0.5)] ring-2 ring-red-950/50 after:absolute after:top-1 after:left-1 after:w-2 after:h-2 after:bg-white/75 after:rounded-full" />
           </div>
         );
       case 2:
         // Dü: Two diagonal ebony pips
         return (
-          <div className="w-full h-full flex justify-between p-2.5">
+          <div className="w-full h-full flex justify-between p-2">
             <span className={pipClassBlack} />
             <span className={`${pipClassBlack} self-end`} />
           </div>
@@ -57,7 +57,7 @@ function DieFace({ value }: { value: number }) {
       case 3:
         // Se: Three diagonal ebony pips
         return (
-          <div className="w-full h-full flex justify-between p-2.5">
+          <div className="w-full h-full flex justify-between p-2">
             <span className={pipClassBlack} />
             <span className={`${pipClassBlack} self-center`} />
             <span className={`${pipClassBlack} self-end`} />
@@ -76,10 +76,10 @@ function DieFace({ value }: { value: number }) {
       case 5:
         // Penc: 4 corner ebony pips + 1 center ruby red pip
         return (
-          <div className="w-full h-full relative p-2.5">
+          <div className="w-full h-full relative p-2">
             <span className={`absolute top-2 left-2 ${pipClassBlack}`} />
             <span className={`absolute top-2 right-2 ${pipClassBlack}`} />
-            <span className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 relative w-3.5 h-3.5 rounded-full bg-gradient-to-br from-red-600 via-red-700 to-red-950 shadow-[inset_0_1px_2px_rgba(0,0,0,0.6)] ring-1 ring-red-900/60 after:absolute after:top-0.5 after:left-0.5 after:w-1 after:h-1 after:bg-white/60 after:rounded-full" />
+            <span className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 relative w-4 h-4 rounded-full bg-gradient-to-br from-red-500 via-red-700 to-red-950 shadow-[inset_0_1px_2px_rgba(0,0,0,0.65)] ring-2 ring-red-950/60 after:absolute after:top-0.5 after:left-0.5 after:w-1.5 after:h-1.5 after:bg-white/65 after:rounded-full" />
             <span className={`absolute bottom-2 left-2 ${pipClassBlack}`} />
             <span className={`absolute bottom-2 right-2 ${pipClassBlack}`} />
           </div>
@@ -102,7 +102,7 @@ function DieFace({ value }: { value: number }) {
   };
 
   return (
-    <div className="w-full h-full bg-gradient-to-br from-[#fffefc] via-[#f7ecd5] to-[#ebd4b0] border border-[#b8956b]/80 rounded-[10px] shadow-[inset_0_1px_3px_rgba(255,255,255,0.9),inset_0_-2px_4px_rgba(110,65,25,0.2),0_2px_6px_rgba(0,0,0,0.3)]">
+    <div className="w-full h-full bg-gradient-to-br from-[#fffefc] via-[#f8eeda] to-[#e8cfa5] border-2 border-[#8a5a28]/70 rounded-[12px] shadow-[inset_0_1px_3px_rgba(255,255,255,0.9),inset_0_-2px_5px_rgba(110,65,25,0.25),0_2px_8px_rgba(0,0,0,0.4)]">
       {renderPips()}
     </div>
   );
@@ -120,7 +120,7 @@ function SingleCube({
   dieIndex: 1 | 2;
   offsetAngle?: number;
 }) {
-  const size = 52; // px cube size
+  const size = 60; // px cube size (büyük ve okunaklı)
   const half = size / 2;
 
   const targetFace = FACE_ROTATIONS[value] || FACE_ROTATIONS[6];
@@ -173,7 +173,7 @@ function SingleCube({
   const settleTiltZ = isDie1 ? 4 : -4;
 
   return (
-    <div className="relative perspective-dice w-[52px] h-[52px]">
+    <div className="relative perspective-dice w-[60px] h-[60px]">
       {/* OUTER PHYSICS CONTAINER: Handles Flight Arc, Landing Bounce & Squash-and-Stretch */}
       <motion.div
         className="w-full h-full relative"
@@ -211,7 +211,7 @@ function SingleCube({
         {/* INNER 3D CUBE CONTAINER: Handles High-Speed 3D Rotations & Settling to Target Face */}
         <motion.div
           key={`${dieIndex}-${isRolling ? 'rolling' : value}`}
-          className="w-full h-full preserve-3d relative cursor-pointer"
+          className="w-full h-full preserve-3d relative"
           animate={
             isRolling
               ? {
@@ -298,7 +298,7 @@ function SingleCube({
 
       {/* Dynamic 3D Floor Shadow Responding to Height & Bounces */}
       <motion.div
-        className="absolute -bottom-3 left-1/2 -translate-x-1/2 w-11 h-3.5 bg-black/60 rounded-full blur-[3px] pointer-events-none"
+        className="absolute -bottom-3 left-1/2 -translate-x-1/2 w-14 h-4 bg-black/60 rounded-full blur-[3px] pointer-events-none"
         animate={{
           scale: shadowScale,
           opacity: shadowOpacity,
@@ -336,11 +336,17 @@ export const TavlaDice3D: React.FC<TavlaDice3DProps> = ({
 }) => {
   const d1 = dice ? dice[0] : 6;
   const d2 = dice ? dice[1] : 6;
+  // Zar atılmayı beklerken tepsinin tamamı ZAR AT butonu gibi davranır
+  const trayRollable = isPlayerTurn && !hasDice && !isRolling;
 
   return (
     <div className="flex flex-col items-center justify-center gap-3">
       {/* 3D Dice Display Tray (Otantik Deri Zar Tepsisi) */}
-      <div className="relative flex items-center justify-center gap-9 py-4 px-7 rounded-3xl bg-gradient-to-b from-[#211209]/95 via-[#180c05]/95 to-[#120703]/95 border-2 border-[#d97706]/40 shadow-[0_16px_40px_rgba(0,0,0,0.85),inset_0_1px_2px_rgba(255,255,255,0.15)] backdrop-blur-xl">
+      <div
+        onClick={trayRollable ? onRollClick : undefined}
+        role={trayRollable ? 'button' : undefined}
+        aria-label={trayRollable ? 'Zar atmak için dokun' : undefined}
+        className={`relative flex items-center justify-center gap-9 py-4 px-7 rounded-3xl bg-gradient-to-b from-[#211209]/95 via-[#180c05]/95 to-[#120703]/95 border-2 border-[#d97706]/40 shadow-[0_16px_40px_rgba(0,0,0,0.85),inset_0_1px_2px_rgba(255,255,255,0.15)] backdrop-blur-xl ${trayRollable ? 'cursor-pointer active:scale-[0.98] transition-transform' : ''}`}>
         {/* Brass corner brackets */}
         <div className="absolute top-2 left-2 w-3.5 h-3.5 border-t-2 border-l-2 border-amber-400/50 pointer-events-none" />
         <div className="absolute top-2 right-2 w-3.5 h-3.5 border-t-2 border-r-2 border-amber-400/50 pointer-events-none" />

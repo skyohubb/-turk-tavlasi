@@ -16,6 +16,7 @@ interface KahvehaneLobbyProps {
   activeTab?: 'opponents' | 'venues';
   onTabChange?: (tab: 'opponents' | 'venues') => void;
   onStartGame: (opponent: Opponent, mode: GameMode) => void;
+  onStartTournament?: () => void;
   onOpenStats: () => void;
   onOpenLeaderboard?: () => void;
   onOpenProfile?: () => void;
@@ -70,6 +71,16 @@ export const OPPONENTS: Opponent[] = [
     rating: 1320,
   },
   {
+    id: 'simitci_veli',
+    name: 'Simitçi Veli',
+    title: 'Vapur İskeleleri Yıldızı',
+    avatar: '/images/avatar_genc_cirak.jpg',
+    difficulty: 'easy',
+    catchphrase: '“Simit de atarım zar da! Sabah vapurunda ısındı bu bilekler.”',
+    venue: 'Kadıköy İskele Kahvesi',
+    rating: 1180,
+  },
+  {
     id: 'muallim_hikmet',
     name: 'Muallim Hikmet Bey',
     title: 'Emekli Edebiyat Muallimi',
@@ -78,6 +89,16 @@ export const OPPONENTS: Opponent[] = [
     catchphrase: '“Severler güzeli penc-ü se... Zarların da bir vezni, bir hikmeti vardır.”',
     venue: 'Sahaflar Kıraathanesi',
     rating: 1610,
+  },
+  {
+    id: 'kaptan_riza',
+    name: 'Kaptan Rıza',
+    title: 'Karaköy Liman Kurdu',
+    avatar: '/images/tavla_master.jpg',
+    difficulty: 'hard',
+    catchphrase: '“Kırk yıllık kaptanım, fırtınada bile kapıyı bırakmam!”',
+    venue: 'Karaköy Liman Kahvesi',
+    rating: 1740,
   },
   {
     id: 'usta_selim',
@@ -108,6 +129,7 @@ export const VENUES = [
     desc: 'Asırlık çınarın gölgesinde çay kaşığı tıkırtıları ve acemi zarlar.',
     bg: '/images/kahvehane_ambient.jpg',
     tier: 'Acemi & Çırak',
+    opponentId: 'haci_dayi',
   },
   {
     id: 'galata',
@@ -115,6 +137,7 @@ export const VENUES = [
     desc: 'Haliç rüzgarında çetin kapı mücadeleleri ve usta kalfalar.',
     bg: '/images/tavla_board.jpg',
     tier: 'Kıdemli Kalfa',
+    opponentId: 'mahmut_emmi',
   },
   {
     id: 'kapalicarsi',
@@ -122,6 +145,7 @@ export const VENUES = [
     desc: 'Sedef kakma antik tahtalarda mars bahisleri ve efsane üstatlar.',
     bg: '/images/tavla_crest.jpg',
     tier: 'Büyük Usta',
+    opponentId: 'usta_selim',
   },
 ];
 
@@ -130,6 +154,7 @@ export const KahvehaneLobby: React.FC<KahvehaneLobbyProps> = ({
   activeTab: controlledTab,
   onTabChange,
   onStartGame,
+  onStartTournament,
   onOpenStats,
   onOpenLeaderboard,
   onOpenProfile,
@@ -693,6 +718,32 @@ export const KahvehaneLobby: React.FC<KahvehaneLobbyProps> = ({
         <AdMobBanner format="banner" initialCreativeIndex={6} className="shadow-2xl border-amber-500/40" />
       </div>
 
+      {/* DÜŞEŞ ŞAMPİYONLAR TURNUVASI — tek dokunuşla katılım */}
+      {onStartTournament && (
+        <button
+          onClick={onStartTournament}
+          className="relative w-full p-4 sm:p-5 rounded-3xl border-2 border-amber-400/60 bg-gradient-to-r from-[#2a1508] via-[#3a1e0a] to-[#2a1508] shadow-[0_10px_35px_rgba(245,158,11,0.25)] overflow-hidden text-left active:scale-[0.99] transition-transform group"
+        >
+          <div className="absolute -top-10 -right-10 w-40 h-40 rounded-full bg-amber-500/20 blur-3xl pointer-events-none" />
+          <div className="flex items-center gap-3 sm:gap-4">
+            <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-gradient-to-br from-amber-400 to-amber-700 flex items-center justify-center text-3xl sm:text-4xl shadow-lg shrink-0">
+              🏆
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="font-serif-tavla font-black text-base sm:text-lg text-white tracking-wide">
+                Düşeş Şampiyonlar Turnuvası
+              </div>
+              <div className="text-[11px] sm:text-xs text-amber-200/80 mt-0.5">
+                3 tur: Çeyrek → Yarı → Büyük Final · Büyük ödül <strong className="text-amber-300">2.000 Akçe</strong> · Giriş 1 çay
+              </div>
+            </div>
+            <span className="shrink-0 px-4 sm:px-5 py-2.5 rounded-full bg-gradient-to-r from-amber-500 to-amber-600 text-stone-950 font-serif-tavla font-black text-xs sm:text-sm shadow group-active:scale-95 transition-transform min-h-[44px] flex items-center">
+              KATIL ➜
+            </span>
+          </div>
+        </button>
+      )}
+
       {/* TAB CONTENT: Kahvehane Ustaları Roster */}
       {currentTab === 'opponents' && (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -703,8 +754,9 @@ export const KahvehaneLobby: React.FC<KahvehaneLobbyProps> = ({
                 key={opp.id}
                 whileHover={{ y: -4 }}
                 onClick={() => {
+                  // Kart dokunuşu SADECE seçer; maç "Otur/Başlat" düğmeleriyle başlar
+                  // (yanlışlıkla dokunuşta can yanmasın diye).
                   setSelectedOpponent(opp);
-                  onStartGame(opp, selectedMode);
                 }}
                 className={`p-4 rounded-3xl border transition-all duration-200 cursor-pointer flex flex-col justify-between ${
                   isSelected
@@ -862,7 +914,11 @@ export const KahvehaneLobby: React.FC<KahvehaneLobbyProps> = ({
                   <span className="text-xs text-amber-200/60 font-medium">Giriş: Ücretsiz</span>
                   <button
                     onClick={() => {
-                      const matchedOpp = OPPONENTS.find(o => o.venue.toLowerCase().includes(venue.id) || o.venue === venue.title) || selectedOpponent;
+                      // Masa → rakip eşleşmesi kimlikle (isim benzerliğine emanet değil)
+                      const matchedOpp =
+                        OPPONENTS.find(o => o.id === venue.opponentId) ||
+                        OPPONENTS.find(o => o.venue.toLowerCase().includes(venue.id) || o.venue === venue.title) ||
+                        selectedOpponent;
                       setSelectedOpponent(matchedOpp);
                       onStartGame(matchedOpp, selectedMode);
                     }}
@@ -895,6 +951,14 @@ export const KahvehaneLobby: React.FC<KahvehaneLobbyProps> = ({
       <div className="w-full pt-2 pb-1">
         <AdMobBanner format="banner" className="shadow-2xl" />
       </div>
+
+      {/* Gizlilik bağlantısı: mağaza incelemesi + arayüz erişimi için lobide görünür */}
+      <a
+        href="/privacy"
+        className="block w-full text-center py-2 text-[11px] text-amber-200/50 hover:text-amber-200/80 underline underline-offset-2"
+      >
+        Gizlilik Politikası
+      </a>
       </>
       )}
     </div>
