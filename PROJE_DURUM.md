@@ -27,14 +27,15 @@
 | vc7 | `playstore/duses-tavla-v1.0.0-vc7.aab` | vc6 ile aynı içerik, versionCode 7 — Play "kullanıldı" dedi, yüklenemedi |
 | vc10 | `playstore/duses-tavla-v1.0.0-vc10.aab` | (09.10): vc6/vc7 ile aynı içerik, versionCode 10 (6-9 Play'de dolu — eski taslaklar kapmış, detaya girilmedi, üste zıplandı) |
 | vc11 | `playstore/duses-tavla-v1.0.0-vc11.aab` | **GÜNCEL (10.10)**: AD_ID izni eklendi (`com.google.android.gms.permission.AD_ID`) — Play "reklam kimliği beyanı" hatası düzeltmesi. versionCode 11, imzalı, merged manifest doğrulandı |
+| vc12 | `playstore/duses-tavla-v1.0.0-vc12.aab` | **GÜNCEL (25.10)**: Yeni banner birimi (7032594932) + native AdMob banner (alt kenar, uyarlanabilir), privacy v1.2, TEST_MODE=false (gerçek reklam). versionCode 12, imzalı, JDK 21, ASCII build. |
 
 ## 4. İmza ve kimlikler (dosyalar repoya GİRMEZ)
 - Keystore: `playstore/keys/duses-release.keystore` (alias `duses`) — USB+bulut yedeği ŞART
 - Şifreler: `playstore/keys/KEYSTORE_BILGILERI.txt` (sadece bu PC'de)
 - Yükleme anahtarı SHA-256: `75:57:4E:19:...:FD:A8` (detay bilgi dosyasında)
-- AdMob gerçek kimlikleri: `.env.local` + `AndroidManifest.xml` + `NETLIFY_DEPLOY.md` içinde
-  - App: `...~6791782749` · Banner: `.../7032594932` (25.10, eskisi 3475354268 "geçersiz" idi) · Geçiş: `.../4812486667`
-  - Ödüllü: `.../2186323326` · Yedek ödüllü geçiş: `.../5893459039`
+- AdMob gerçek kimlikleri: `.env.local` + `AndroidManifest.xml` + `NETLIFY_DEPLOY.md` içinde (TEST_MODE=false → gerçek reklam)
+  - App: `...~6791782749` · Banner: `.../7032594932` (25.10, eskisi 3475354268 "geçersiz" idi)
+  - Geçiş: `.../4812486667` · Ödüllü: `.../2186323326` · Yedek ödüllü geçiş: `.../5893459039`
 - assetlinks.json: 3 parmak izi (noktalı format!) yayında, Google doğruladı
 
 ## 5. Yapılan büyük işler (özet)
@@ -56,10 +57,11 @@
 16. Reklam denetimi + düzeltmeler (09.10): ödül listener yarışı (tam izlenen videoda "yarım kaldı" hatası) düzeltildi — listener'lar gösterimden ÖNCE, karar promise'te, finally'de temizlik; native takılmaya 60sn timeout; günlük limit tek kaynak (8, eskiden 6/8 karışıktı); cooldown modal-parent senkronu; Victory sahte "Alındı" rozeti artık gerçek ödülde (rewardNonce); mağaza Escape'i indirim videosu açıkken mağazayı kapatmıyor; interstitial sayaç başarısız gösterimde yanmıyor; `describeActiveUnits()` debug eklendi
 17. AAB beyaz-ekran kök nedeni (09.10, Java kanıtlı): plugin v8'de rewarded `show` sözü ödülsüz kapatmada ASLA çözülmüyor → modal donuyordu. Düzeltme: prepare çözülmeden show YOK (20sn yükleme sınırı, hazır değilse pencere açılmıyor), show Dismissed/FailedToShow sinyaliyle yarışıyor (kapatınca UI anında dönüyor), sonuç sebepli nesne (`completed/dismissed-early/load-failed/show-failed/timeout`), show/interstitial'a açık `adId`. `npm run build:mobile` android/assets'i tazeledi (doğrulandı)
 18. Gizlilik politikası Play ret düzeltmesi (24.10): Play Console'a kök URL girilmiş, Google "geçersiz gizlilik politikası" demiş. `/privacy` sayfası zaten yayındaydı ama ana sayfa statik HTML'inde bağlantı yoktu. Yapılan: (a) privacy sayfası v1.1 — AdMob/Advertising ID/Google LLC/çocuklar/madde madde yenilendi, (b) KahvehaneLobby altına her lobide görünen `/privacy` bağlantısı eklendi (statik HTML'de doğrulandı), (c) Netlify'a push edilince yayına girecek. Play Console'da Gizlilik politikası URL'si `https://inquisitive-dieffenbachia-91c987.netlify.app/privacy` olmalı (kök değil!)
+19. Yeni banner birimi + native banner entegrasyonu (25.10): AdMob yeni banner (7032594932, eskisi 3475354268 "Geçerli değil" idi). NativeAdBanner bileşeni eklendi (alt kenar, uyarlanabilir, layout boşluğu `--admob-banner-h`), LobbyBottomNav bottom offset, TEST_MODE=false → gerçek reklam ID'leri. AAB vc12 (versionCode 12) ASCII build ile basıldı (JDK 21, C:\duses-aab-build), imza parmak izi doğrulandı.
 
 ## 6. Kalan / sıradaki işler
-- [ ] **Play Console**: Gizlilik politikası URL'sini `https://inquisitive-dieffenbachia-91c987.netlify.app/privacy` yap (kök URL reddedilmişti) + Netlify push sonrası yeniden gönder
-- [ ] Play incelemesi sonucu bekleniyor (kapalı test, vc2 yüklü — vc4'ü test bitince yükle)
+- [x] **Play Console**: Gizlilik politikası URL'si `https://inquisitive-dieffenbachia-91c987.netlify.app/privacy` (25.10 canlı, v1.2)
+- [ ] Play incelemesi sonucu bekleniyor (kapalı test, vc2 yüklü — vc12 test bitince yükle)
 - [ ] Adres çubuğu: assetlinks Google-onaylı; uygulamada test edilecek (sil → yeniden kur)
 - [ ] "Powered by Netlify" rozeti (08.10 teşhisi): sayfa HTML'inde + uygulama kodunda YOK (taranan: tüm `fixed` öğeler, sponsor kartları, bottom-nav, canlı site HTML'i). İkon platform katmanından geliyor: ya Custom Tab fallback (assetlinks o cihazda doğrulanmamış) ya da cihaz UI'ı. Kaldırma = kodla değil, cihazda "Varsayılan olarak aç → bağlantılar doğrulandı mı" kontrolü + ekran görüntüsüyle teşhis. Kalıcı çözüm: özel alan adı (netlify.app damgası tamamen biter).
 - [ ] İkinci remote eksik: `git remote` çıktısında sadece `skyohubb/-turk-tavlasi` var; Netlify deposu (`.../inquisitive-dieffenbachia-91c987`) remote olarak ekli değil — "iki repoya push" kuralı şu an işlemiyor
