@@ -138,16 +138,17 @@ Android APK / AAB paketleme dizini `/playstore/android-res/` içine eksiksiz yer
 
 ## 5. VERİ GÜVENLİĞİ VE GİZLİLİK POLİTİKASI (DATA SAFETY)
 
+> Güncel (26.10): vc12'de gerçek AdMob var → form "veri toplamıyorum" DEĞİL, aşağıdaki gibidir. Detay: `DATA_SAFETY.md`.
+
 Google Play Veri Güvenliği Formu doldurulurken kullanılacak bilgiler:
-1. **Toplanan Veriler (v1.0 çevrimdışı):**
-   - Oyuncu takma adı (isteğe bağlı, yalnızca cihazda saklanır)
-   - Oyun içi istatistikler (maç sayısı, reyting — yalnızca cihazda)
-2. **Kullanım Amacı:**
-   - Oyun işlevselliği ve cihaz içi lig sıralaması.
-3. **Üçüncü Tarafla Paylaşım:**
-   - Kişisel veri toplanmaz/satılmaz. Gerçek AdMob kullanılıyorsa Google reklam kimliği Google politikasına tabidir.
-4. **Veri Silme:**
-   - Uygulama içi Profil → Verilerimi Sil + `/privacy` sayfasındaki talimat.
+1. **Toplanan Veriler (vc12, gerçek AdMob):**
+   - Cihaz kimliği: Google reklam kimliği (Advertising ID / AAID)
+   - IP adresi (AdMob işler)
+   - Uygulama/ reklam etkileşim verileri (gösterim, tıklama, ödüllü izleme)
+   - Oyuncu takma adı, istatistikler, akçe — yalnızca cihazda, sunucuya gitmez
+2. **Kullanım Amacı:** Reklam gösterimi + kişiselleştirme, reklam ölçümü, sahtekârlık önleme.
+3. **Üçüncü Tarafla Paylaşım:** Evet → Google LLC / AdMob yayıncı ortakları (yalnızca reklam amaçlı). Oyun verileri paylaşılmaz, veri satılmaz.
+4. **Şifreleme / Silme:** İletimde TLS; uygulama içi Verilerimi Sil + Google Reklam Ayarları (`https://adssettings.google.com`). Ayrıntılar: `/privacy` (v1.3).
 
 ---
 
