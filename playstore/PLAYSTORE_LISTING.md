@@ -100,6 +100,7 @@ Proje klasörü içindeki tüm görsel dosyalar Google Play gereksinimlerine gö
 | **Ekran Görüntüsü 2 (3D Tahta & Zar)** | 768 x 1376 px, JPEG | `/playstore/assets/screenshot_phone_2.jpg` | ✅ Hazır |
 | **Ekran Görüntüsü 3 (Tarihi Tahtalar)** | 768 x 1376 px, JPEG | `/playstore/assets/screenshot_phone_3.jpg` | ✅ Hazır |
 | **Ekran Görüntüsü 4 (Kahvehane & Lig)** | 768 x 1376 px, JPEG | `/playstore/assets/screenshot_phone_4.jpg` | ✅ Hazır |
+| **Ekran Görüntüsü 5 (Tablet - Lobi)** | 1200 x 2150 px, JPEG | `/playstore/assets/screenshot_tablet_1.jpg` | ✅ Hazır (26.10.2026) |
 
 ---
 

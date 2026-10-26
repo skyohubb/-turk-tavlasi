@@ -56,88 +56,88 @@ export const AVAILABLE_REWARDS: AdRewardInfo[] = [
 
 export const SPONSORED_CREATIVES: AdMobCreative[] = [
   {
-    id: 'ad_kahve',
-    sponsorName: 'Tarihi Kurukahveci Mehmet Efendi',
-    headline: 'Tavlanın Yanına Közde Türk Kahvesi',
-    tagline: '1871\'den beri geleneksel lezzet. İnce belli çay ve taze kahve keyfi.',
+    id: 'ad_placeholder_1',
+    sponsorName: 'Örnek Marka',
+    headline: 'Ürün Reklamı Örneği',
+    tagline: 'Bu bir yer tutucudur, gerçek marka içermiyor.',
     ctaText: 'Keşfet',
     icon: '☕',
     bannerImage: '/images/antique_kahvehane_nostalgia.jpg',
     rating: 4.9,
-    badgeText: 'Özel Sponsor',
-    category: 'Gıda & İçecek',
+    badgeText: 'Örnek',
+    category: 'Genel',
   },
   {
-    id: 'ad_woodcraft',
-    sponsorName: 'Kapalıçarşı Sedef & Gül Ağacı Zanaat',
-    headline: 'El İşçiliği Osmanlı Tavla Koleksiyonu',
-    tagline: 'Ceviz oyma, fildişi ve sedef motifli efsanevi ahşap ustaları.',
-    ctaText: 'Koleksiyonu Gör',
+    id: 'ad_placeholder_2',
+    sponsorName: 'Örnek Mağaza',
+    headline: 'Mağaza Tanıtımı',
+    tagline: 'Gerçek bir marka tanıtımı değildir.',
+    ctaText: 'Gör',
     icon: '🪵',
     bannerImage: '/images/tavla_board.jpg',
     rating: 4.8,
-    badgeText: 'Zanaat',
-    category: 'Ahşap & Dekorasyon',
+    badgeText: 'Örnek',
+    category: 'Genel',
   },
   {
-    id: 'ad_tournament',
-    sponsorName: 'Düşeş Şampiyonlar Ligi',
-    headline: 'Haftalık 10.000 Akçelik Büyük Tavla Turnuvası',
-    tagline: 'İstanbul, İzmir ve Bursa ustalarıyla online meydan okuma.',
-    ctaText: 'Turnuvaya Katıl',
+    id: 'ad_placeholder_3',
+    sponsorName: 'Örnek Turnuva',
+    headline: 'Turnuva Tanıtımı',
+    tagline: 'Sadece bir görsel simülasyondur.',
+    ctaText: 'Katıl',
     icon: '🏆',
     bannerImage: '/images/kahvehane_ambient.jpg',
     rating: 5.0,
-    badgeText: 'Resmi Turnuva',
-    category: 'E-Spor & Oyun',
+    badgeText: 'Örnek',
+    category: 'Genel',
   },
   {
-    id: 'ad_bosphorus',
-    sponsorName: 'Boğaziçi Çınaraltı Çay Bahçesi',
-    headline: 'Deniz Kokusunda Tavla Şakırtısı',
-    tagline: 'Asırlık çınarların altında demli çay ve dost sohbeti.',
+    id: 'ad_placeholder_4',
+    sponsorName: 'Örnek Mekan',
+    headline: 'Mekan Tanıtımı',
+    tagline: 'Gerçek bir işletmeye ait değil.',
     ctaText: 'Ziyaret Et',
     icon: '🌊',
     bannerImage: '/images/antique_kahvehane_nostalgia.jpg',
     rating: 4.7,
-    badgeText: 'Tarihi Mekan',
-    category: 'Kültür & Seyahat',
+    badgeText: 'Örnek',
+    category: 'Genel',
   },
   {
-    id: 'ad_tea',
-    sponsorName: 'Rize Çayeli Demlik İkramı',
-    headline: 'Tavşan Kanı Hakiki Karadeniz Çayı',
-    tagline: 'Tavla keyfini ikiye katlayan taze hasat, ince belli bardakta köz lezzeti.',
-    ctaText: 'Çay Söyle',
+    id: 'ad_placeholder_5',
+    sponsorName: 'Örnek İçecek',
+    headline: 'İçecek Reklamı',
+    tagline: 'Yer tutucu içeriktir.',
+    ctaText: 'Söyle',
     icon: '🫖',
     bannerImage: '/images/antique_kahvehane_nostalgia.jpg',
     rating: 4.9,
-    badgeText: 'Doğal Lezzet',
-    category: 'Gıda & İçecek',
+    badgeText: 'Örnek',
+    category: 'Genel',
   },
   {
-    id: 'ad_antika',
-    sponsorName: 'Horhor Antikacılar Çarşısı',
-    headline: 'Nadir Kemik Zar & Sedef Takımlar',
-    tagline: 'Koleksiyonerlere özel asırlık pirinç kakmalı ve ceviz antika tavlalar.',
-    ctaText: 'Mezatı Gör',
+    id: 'ad_placeholder_6',
+    sponsorName: 'Örnek Koleksiyon',
+    headline: 'Koleksiyon Tanıtımı',
+    tagline: 'Sadece simülasyon amaçlıdır.',
+    ctaText: 'Gör',
     icon: '🏛️',
     bannerImage: '/images/tavla_board.jpg',
     rating: 4.8,
-    badgeText: 'Antika & Sanat',
-    category: 'Koleksiyon',
+    badgeText: 'Örnek',
+    category: 'Genel',
   },
   {
-    id: 'ad_lokum',
-    sponsorName: 'Hafız Mustafa 1864',
-    headline: 'Güllü & Fıstıklı Sultan Lokumları',
-    tagline: 'Tavla zaferini tatlandıran geleneksel Osmanlı saray lezzeti.',
+    id: 'ad_placeholder_7',
+    sponsorName: 'Örnek Tatlı',
+    headline: 'Tatlı Reklamı',
+    tagline: 'Gerçek bir ürün değil.',
     ctaText: 'Sipariş Ver',
     icon: '🍬',
     bannerImage: '/images/kahvehane_ambient.jpg',
     rating: 5.0,
-    badgeText: 'Saray Lezzeti',
-    category: 'Tatlı & İkram',
+    badgeText: 'Örnek',
+    category: 'Genel',
   },
 ];
 
@@ -190,7 +190,7 @@ class AdmobService {
       };
 
   private matchesPlayedCounter: number = 0;
-  private readonly INTERSTITIAL_MATCH_INTERVAL: number = 2; // Every 2 finished matches
+  private readonly INTERSTITIAL_MATCH_INTERVAL: number = 4; // Every 4 finished matches (AdMob frequent-interstitial önlemi)
 
   // Cooldown between rewarded video ads: 3 minutes (180s)
   public readonly REWARDED_COOLDOWN_MS: number = AD_REWARDED_COOLDOWN_MS;
@@ -211,7 +211,14 @@ class AdmobService {
     if (!this.isNativeAdMobAvailable()) return;
     try {
       const { AdMob } = await import('@capacitor-community/admob');
-      await AdMob.initialize();
+      const testDevices = process.env.NEXT_PUBLIC_ADMOB_TEST_DEVICES
+        ? process.env.NEXT_PUBLIC_ADMOB_TEST_DEVICES.split(',').map(s => s.trim()).filter(Boolean)
+        : [];
+      await AdMob.initialize({
+        initializeForTesting: this.isTestMode,
+        testingDevices: testDevices,
+        tagForUnderAgeOfConsent: false,
+      });
     } catch (e) {
       console.debug('AdMob native init atlandı (web fallback aktif)', e);
     }
